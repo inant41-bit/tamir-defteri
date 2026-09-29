@@ -78,7 +78,7 @@ section[hidden]{display:none}
 .mid small,.rt small{color:var(--mut);font-size:13px}
 .rt{flex:none;text-align:right}.rt b{display:block}
 .dh{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin:16px 4px 6px}
-</style></head><body>
+.sheet,.panel{overscroll-behavior:contain}.bn{background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}.bn[hidden]{display:none}.bn .btn{padding:7px 12px}</style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
 <div class="stats">
@@ -86,6 +86,7 @@ section[hidden]{display:none}
 <div class="stat"><b id="s2">0 ₺</b><select id="per" aria-label="Dönem"><option value="all">Genel toplam</option><option value="month">Bu ay</option><option value="week">Bu hafta</option><option value="day">Bugün</option></select></div>
 <div class="stat"><b id="s3">0 ₺</b><small>Bayi alacağı</small></div>
 </div>
+<div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
 <div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
 <section id="v1"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div><div id="list"></div></section>
 <section id="v2" hidden><div id="dl"></div></section>
@@ -94,11 +95,14 @@ section[hidden]{display:none}
 
 <div class="sheet" id="bs"><div class="panel">
 <h2>Yedek</h2>
-<p class="mut">Kayıtlar, bayiler ve ödemeler yalnızca bu telefonda durur. Metni kopyalayıp Notlar'a veya kendine mesaj olarak sakla.</p>
-<label for="b-out">Yedek metni</label><textarea id="b-out" readonly rows="4"></textarea>
-<div class="acts"><button class="btn p" id="bcp">Kopyala</button></div>
-<label for="b-in">Geri yükle: yedek metnini buraya yapıştır</label><textarea id="b-in" rows="3"></textarea>
+<p class="mut">Kayıtlar, bayiler ve ödemeler yalnızca bu telefonda durur. Yedeği dosya olarak iCloud Drive'a veya Google Drive'a kaydet.</p>
+<div class="acts"><button class="btn p" id="bsv">Dosya olarak kaydet</button></div>
+<p class="mut" id="bls"></p>
+<label for="b-file">Geri yükle: yedek dosyasını seç</label><input type="file" id="b-file" accept=".json,application/json">
+<label for="b-in">Dosya yoksa: yedek metnini yapıştır</label><textarea id="b-in" rows="3"></textarea>
 <div class="acts"><button class="btn" data-x>Kapat</button><button class="btn p" id="bld">Geri yükle</button></div>
+<label for="b-out">Yedek metni (dosya paylaşılamazsa)</label><textarea id="b-out" readonly rows="3"></textarea>
+<div class="acts"><button class="btn" id="bcp">Metni kopyala</button></div>
 </div></div>
 
 <div class="sheet" id="ds"><div class="panel" id="dd"></div></div>
@@ -178,7 +182,7 @@ function dRender(){
 <h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${fin(i)?(i.paid?' · ödendi':''):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
 <h3>Ödemeler (${ps.length})</h3>${ps.map(p=>`<div class="mr"><span>${fmt(p.date)}${p.note?' · '+esc(p.note):''}</span><span><b class="pos">${money(p.amt)}</b><button class="x" data-pd="${p.id}" aria-label="Ödemeyi sil">×</button></span></div>`).join('')||'<div class="mut">Ödeme yok</div>'}`;
 }
-const ref=()=>{render();if($('#ds').classList.contains('open'))dRender()};
+const ref=()=>{render();bnr();if($('#ds').classList.contains('open'))dRender()};
 function sumTxt(){
  const d=dealers.find(x=>x.id===cur);
  return [d.name+' hesap özeti','',...items.filter(i=>i.dealer===cur&&fin(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(i=>fmt(i.date)+' '+i.model+': '+money(i.fee)),'',...pays.filter(p=>p.dealer===cur).map(p=>fmt(p.date)+' ödeme: -'+money(p.amt)),'','Toplam iş: '+money(owed(cur)),'Ödenen: '+money(paid(cur)),'Kalan borç: '+money(debt(cur))].join('\n');
@@ -241,15 +245,36 @@ document.addEventListener('click',e=>{
  if(x=t.closest('article[data-id]')){openForm(+x.dataset.id);return}
  if(x=t.closest('article[data-d]')){cur=+x.dataset.d;dRender();open('ds')}
 });
-$('#bkb').onclick=()=>{$('#b-out').value=JSON.stringify({v:2,items,dealers,pays});$('#b-in').value='';open('bs')};
+const LB='tamir-son-yedek';
+const lastB=()=>{try{return localStorage.getItem(LB)||''}catch(e){return''}};
+const dAgo=s=>s?Math.floor((Date.now()-new Date(s+'T00:00'))/864e5):null;
+function bnr(){const a=dAgo(lastB()),n=items.length+dealers.length+pays.length>0;$('#bn').hidden=!(n&&(a===null||a>=7));$('#bnt').textContent=a===null?'Henüz yedek almadın.':'Son yedek '+a+' gün önce.'}
+function openB(){$('#b-out').value=JSON.stringify({v:2,items,dealers,pays});$('#b-in').value='';const a=dAgo(lastB());$('#bls').textContent=a===null?'Henüz yedek alınmadı.':'Son yedek: '+(a===0?'bugün':a+' gün önce')+'.';open('bs')}
+$('#bkb').onclick=$('#bnb').onclick=openB;
+$('#bsv').onclick=async()=>{
+ const txt=JSON.stringify({v:2,items,dealers,pays}),name='tamir-yedek-'+today()+'.json',f=new File([txt],name,{type:'application/json'});
+ try{
+  if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:name});
+  else{const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+  try{localStorage.setItem(LB,today())}catch(e){}
+  bnr();openB();toast('Yedek hazır');
+ }catch(e){if(!e||e.name!=='AbortError')toast('Dosya oluşturulamadı, metni kopyala')}
+};
 $('#bcp').onclick=()=>{const t=$('#b-out');t.select();t.setSelectionRange(0,t.value.length);cp(t.value)};
 const mg=(a,s)=>{let n=0;(s||[]).forEach(o=>{if(o&&o.id){const i=a.findIndex(x=>x.id===o.id);if(i<0)a.push(o);else a[i]=o;n++}});return n};
-$('#bld').onclick=()=>{
- try{const a=JSON.parse($('#b-in').value);let n=0;
+function imp(t){
+ try{const a=JSON.parse(t);let n=0;
   if(Array.isArray(a))n=mg(items,a);else n=mg(items,a.items)+mg(dealers,a.dealers)+mg(pays,a.pays);
   if(!n)throw 0;save();ref();shut('bs');toast(n+' kayıt yüklendi');
- }catch(e){toast('Yedek metni geçersiz')}
-};
+ }catch(e){toast('Yedek geçersiz')}
+}
+$('#bld').onclick=()=>imp($('#b-in').value);
+$('#b-file').onchange=async e=>{const f=e.target.files[0];if(f)imp(await f.text());e.target.value=''};
+let sy=0,lk=false;
+const mo=new MutationObserver(()=>{const any=!!document.querySelector('.sheet.open'),b=document.body.style;
+ if(any&&!lk){sy=window.scrollY;b.position='fixed';b.top='-'+sy+'px';b.left='0';b.right='0';lk=true}
+ else if(!any&&lk){b.position='';b.top='';b.left='';b.right='';window.scrollTo(0,sy);lk=false}});
+document.querySelectorAll('.sheet').forEach(s=>mo.observe(s,{attributes:true,attributeFilter:['class']}));
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-render();
+render();bnr();
 </script></body></html>
