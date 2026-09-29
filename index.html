@@ -271,7 +271,12 @@ function imp(t){
 $('#bld').onclick=()=>imp($('#b-in').value);
 $('#b-file').onchange=async e=>{const f=e.target.files[0];if(f)imp(await f.text());e.target.value=''};
 let sy=0,lk=false;
-const mo=new MutationObserver(()=>{const any=!!document.querySelector('.sheet.open'),b=document.body.style;
+let hd=0,ig=0;
+window.addEventListener('popstate',()=>{if(ig>0){ig--;return}hd=Math.max(0,hd-1);const o=document.querySelectorAll('.sheet.open');if(o.length)o[o.length-1].classList.remove('open')});
+const mo=new MutationObserver(()=>{const nn=document.querySelectorAll('.sheet.open').length;
+ while(hd<nn){history.pushState({s:1},'');hd++}
+ while(hd>nn){hd--;ig++;history.back()}
+ const any=!!document.querySelector('.sheet.open'),b=document.body.style;
  if(any&&!lk){sy=window.scrollY;b.position='fixed';b.top='-'+sy+'px';b.left='0';b.right='0';lk=true}
  else if(!any&&lk){b.position='';b.top='';b.left='';b.right='';window.scrollTo(0,sy);lk=false}});
 document.querySelectorAll('.sheet').forEach(s=>mo.observe(s,{attributes:true,attributeFilter:['class']}));
