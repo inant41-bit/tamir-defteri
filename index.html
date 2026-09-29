@@ -78,7 +78,12 @@ section[hidden]{display:none}
 .mid small,.rt small{color:var(--mut);font-size:13px}
 .rt{flex:none;text-align:right}.rt b{display:block}
 .dh{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin:16px 4px 6px}
-.sheet,.panel{overscroll-behavior:contain}.bn{background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}.bn[hidden]{display:none}.bn .btn{padding:7px 12px}</style></head><body>
+.sheet,.panel{overscroll-behavior:contain}.bn{background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}.bn[hidden]{display:none}.bn .btn{padding:7px 12px}html{-webkit-text-size-adjust:100%}button,a,.rw,select,input{touch-action:manipulation}
+.stk{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;padding-top:4px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sb{display:flex;align-items:center;gap:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:12px;font:inherit;font-size:15px}
+.sb.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}
+</style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
 <div class="stats">
@@ -88,7 +93,7 @@ section[hidden]{display:none}
 </div>
 <div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
 <div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
-<section id="v1"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div><div id="list"></div></section>
+<section id="v1"><div class="stk"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div></div><div id="list"></div><div id="more"></div></section>
 <section id="v2" hidden><div id="dl"></div></section>
 </main>
 <button class="fab" id="add">+ Yeni kayıt</button>
@@ -110,15 +115,15 @@ section[hidden]{display:none}
 <div class="sheet" id="fs"><div class="panel">
 <h2 id="ft">Yeni kayıt</h2>
 <label for="f-dealer">Bayi</label><select id="f-dealer"></select>
-<label for="f-model">Cihaz modeli *</label><input id="f-model" placeholder="Örn. iPhone 12, Galaxy A54">
+<label for="f-model">Cihaz modeli *</label><datalist id="dm"></datalist><input id="f-model" list="dm" placeholder="Örn. iPhone 12, Galaxy A54">
 <div class="two" id="cust"><div><label for="f-name">Müşteri</label><input id="f-name"></div><div><label for="f-phone">Telefon</label><input id="f-phone" type="tel" inputmode="tel"></div></div>
 <label for="f-imei">IMEI / seri no</label><input id="f-imei" inputmode="numeric">
 <label for="f-issue">Arıza</label><textarea id="f-issue" placeholder="Ekran kırık, şarj almıyor..."></textarea>
 <label for="f-work">Yapılan işlem</label><textarea id="f-work" placeholder="Ekran değişti, soket temizlendi..."></textarea>
 <div class="two"><div><label for="f-fee">Ücret (₺)</label><input id="f-fee" type="number" inputmode="decimal" min="0"></div><div><label for="f-date">Tarih</label><input id="f-date" type="date"></div></div>
-<label for="f-st">Durum</label><select id="f-st"></select>
+<label>Durum</label><div class="seg" id="stb"></div><select id="f-st" hidden></select>
 <label class="chk" id="pdw" hidden><input type="checkbox" id="f-paid"> Ödeme alındı</label>
-<div class="acts"><button class="btn d" id="del" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn p" id="fsv">Kaydet</button></div>
+<div class="acts"><button class="btn d" id="del" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn" id="fsn">Kaydet + yeni</button><button class="btn p" id="fsv">Kaydet</button></div>
 </div></div>
 
 <div class="sheet" id="dfs"><div class="panel">
@@ -141,7 +146,7 @@ section[hidden]{display:none}
 const $=s=>document.querySelector(s);
 const K=['tamir-defteri-v1','tamir-bayi-v1','tamir-odeme-v1'],ST=['Bekliyor','Tamirde','Tamamlandı','Teslim edildi'];
 const ld=k=>{try{const a=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}};
-let items=ld(K[0]),dealers=ld(K[1]),pays=ld(K[2]),filter='Hepsi',q='',tab=1,editId=null,editD=null,cur=0;
+let lim=50,qt,items=ld(K[0]),dealers=ld(K[1]),pays=ld(K[2]),filter='Hepsi',q='',tab=1,editId=null,editD=null,cur=0;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(Number(n)||0).toLocaleString('tr-TR')+' ₺';
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -156,6 +161,7 @@ function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setT
 function save(){try{localStorage.setItem(K[0],JSON.stringify(items));localStorage.setItem(K[1],JSON.stringify(dealers));localStorage.setItem(K[2],JSON.stringify(pays))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
 function arm(b,fn,txt){if(b.dataset.a){fn();return}b.dataset.a=1;b.dataset.o=b.textContent;b.textContent=txt||'Emin misin? Sil';b.classList.add('arm');setTimeout(()=>{delete b.dataset.a;b.textContent=b.dataset.o;b.classList.remove('arm')},3000)}
 const open=id=>$('#'+id).classList.add('open'),shut=id=>$('#'+id).classList.remove('open');
+async function sendTxt(t){try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e&&e.name==='AbortError')return}cp(t)}
 async function cp(t){try{await navigator.clipboard.writeText(t);toast('Kopyalandı')}catch(e){$('#b-out').value=t;$('#b-in').value='';open('bs');toast('Metni seçip kopyala')}}
 const card=i=>{const k=ST.indexOf(i.st),w=i.dealer?esc(dn(i.dealer)):esc(i.name||'Bireysel'),pd=i.st==='Teslim edildi'?(i.paid?' · Ödendi':' · Ödeme bekliyor'):'';return `<article class="rw" data-id="${i.id}"><i class="dot s${k}"></i><div class="mid"><b>${esc(i.model)}</b><small>${w}${i.issue?' · '+esc(i.issue):''}</small></div><div class="rt"><b>${money(i.fee)}</b><small>${esc(i.st)}${pd}</small></div></article>`};
 const dlab=d=>!d?'Tarihsiz':d===today()?'Bugün':d===new Date(Date.now()-864e5-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)?'Dün':fmt(d);
@@ -169,16 +175,17 @@ function render(){
  $('#chips').innerHTML=['Hepsi',...ST].map(s=>`<button class="chip${s===filter?' on':''}" data-f="${s}">${s}</button>`).join('');
  const t=q.toLocaleLowerCase('tr');
  const l=items.filter(i=>(filter==='Hepsi'||i.st===filter)&&(!t||[dn(i.dealer),i.name,i.phone,i.model,i.imei,i.issue,i.work].join(' ').toLocaleLowerCase('tr').includes(t))).sort(byD);
- $('#list').innerHTML=l.length?grp(l):`<div class="empty">${items.length?'Bu aramaya uyan kayıt yok.':'Henüz kayıt yok. "Yeni kayıt" ile ilk cihazı ekle.'}</div>`;
+ $('#list').innerHTML=l.length?grp(l.slice(0,lim)):`<div class="empty">${items.length?'Bu aramaya uyan kayıt yok.':'Henüz kayıt yok. "Yeni kayıt" ile ilk cihazı ekle.'}</div>`;
+ $('#more').innerHTML=l.length>lim?`<button class="btn" id="mb" style="width:100%;margin-top:12px">Daha fazla göster (${l.length-lim})</button>`:'';
  $('#dl').innerHTML=dealers.length?'<div class="grp">'+[...dealers].sort((a,b)=>debt(b.id)-debt(a.id)).map(d=>{const b=debt(d.id);return `<article class="rw" data-d="${d.id}"><i class="dot ${b>0?'s0':'s2'}"></i><div class="mid"><b>${esc(d.name)}</b><small>${items.filter(i=>i.dealer===d.id).length} cihaz · Ödenen ${money(paid(d.id))}</small></div><div class="rt"><b class="${b>0?'neg':'pos'}">${b>0?money(b):'Borç yok'}</b></div></article>`}).join('')+'</div>':'<div class="empty">Henüz bayi yok. "Yeni bayi" ile ekle.</div>';
 }
 function dRender(){
  const d=dealers.find(x=>x.id===cur);if(!d)return;
  const its=items.filter(i=>i.dealer===cur).sort(byD),ps=pays.filter(p=>p.dealer===cur).sort((a,b)=>b.date.localeCompare(a.date)),b=debt(cur);
- $('#dd').innerHTML=`<h2>${esc(d.name)}</h2><div class="mut">${esc(d.phone)}${d.phone&&d.note?' · ':''}${esc(d.note)}</div>
+ $('#dd').innerHTML=`<h2>${esc(d.name)}</h2><div class="mut">${d.phone?`<a href="tel:${esc(d.phone)}" style="color:var(--acc)">${esc(d.phone)}</a>`:''}${d.phone&&d.note?' · ':''}${esc(d.note)}</div>
 <div class="stats"><div class="stat"><b class="${b>0?'neg':'pos'}">${money(b)}</b><small>Kalan borç</small></div><div class="stat"><b>${money(owed(cur))}</b><small>Biten iş</small></div><div class="stat"><b>${money(paid(cur))}</b><small>Ödenen</small></div></div>
 <div class="acts"><button class="btn p" data-a="pay">Ödeme al</button><button class="btn" data-a="new">Cihaz ekle</button></div>
-<div class="acts"><button class="btn" data-a="sum">Özet kopyala</button><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
+<div class="acts"><button class="btn" data-a="sum">Özet gönder</button><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
 <h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${fin(i)?(i.paid?' · ödendi':''):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
 <h3>Ödemeler (${ps.length})</h3>${ps.map(p=>`<div class="mr"><span>${fmt(p.date)}${p.note?' · '+esc(p.note):''}</span><span><b class="pos">${money(p.amt)}</b><button class="x" data-pd="${p.id}" aria-label="Ödemeyi sil">×</button></span></div>`).join('')||'<div class="mut">Ödeme yok</div>'}`;
 }
@@ -188,12 +195,14 @@ function sumTxt(){
  return [d.name+' hesap özeti','',...items.filter(i=>i.dealer===cur&&fin(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(i=>fmt(i.date)+' '+i.model+': '+money(i.fee)),'',...pays.filter(p=>p.dealer===cur).map(p=>fmt(p.date)+' ödeme: -'+money(p.amt)),'','Toplam iş: '+money(owed(cur)),'Ödenen: '+money(paid(cur)),'Kalan borç: '+money(debt(cur))].join('\n');
 }
 $('#f-st').innerHTML=ST.map(s=>`<option>${s}</option>`).join('');
+$('#stb').innerHTML=ST.map((s,k)=>`<button type="button" class="sb" data-s="${s}"><i class="dot s${k}"></i>${s}</button>`).join('');
+function stb(){document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('on',b.dataset.s===$('#f-st').value))}
 const F=['dealer','model','name','phone','imei','issue','work','fee','date','st'];
 function openForm(id,dl){
  editId=id;const i=items.find(x=>x.id===id)||{date:today(),st:ST[0],dealer:dl||0};
  $('#f-dealer').innerHTML='<option value="0">Bireysel müşteri</option>'+dealers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
  F.forEach(k=>$('#f-'+k).value=i[k]==null?'':i[k]);
- $('#f-paid').checked=!!i.paid;sync();$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
+ $('#f-paid').checked=!!i.paid;sync();$('#fsn').hidden=!!id;$('#dm').innerHTML=[...new Set(items.map(x=>x.model).filter(Boolean))].slice(-80).map(m=>`<option value="${esc(m)}">`).join('');$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
  const d=$('#del');d.hidden=!id;d.textContent='Sil';d.classList.remove('arm');delete d.dataset.a;open('fs');
 }
 function openDF(id){
@@ -204,13 +213,15 @@ function openDF(id){
 }
 function openPay(){$('#pt').textContent='Ödeme al · '+dn(cur);$('#p-amt').value='';$('#p-note').value='';$('#p-date').value=today();open('ps')}
 $('#add').onclick=()=>tab===1?openForm(null):openDF(null);
-$('#fsv').onclick=()=>{
+function sv(){
  const o={};F.forEach(k=>o[k]=$('#f-'+k).value.trim());
- if(!o.model){toast('Cihaz modelini yaz');$('#f-model').focus();return}
+ if(!o.model){toast('Cihaz modelini yaz');$('#f-model').focus();return false}
  o.fee=o.fee===''?0:Number(o.fee);o.dealer=+o.dealer||0;o.paid=$('#f-paid').checked&&o.st==='Teslim edildi';if(o.dealer){o.name='';o.phone=''}
  if(editId){const i=items.findIndex(x=>x.id===editId);items[i]={...items[i],...o}}else items.push({id:Date.now(),...o});
- save();ref();shut('fs');toast('Kaydedildi');
-};
+ save();ref();toast('Kaydedildi');return true;
+}
+$('#fsv').onclick=()=>{if(sv())shut('fs')};
+$('#fsn').onclick=()=>{const d=+$('#f-dealer').value||0;if(sv()){openForm(null,d);setTimeout(()=>$('#f-model').focus(),60)}};
 $('#del').onclick=e=>arm(e.target,()=>{items=items.filter(x=>x.id!==editId);save();ref();shut('fs');toast('Silindi')});
 $('#dsv').onclick=()=>{
  const o={name:$('#d-name').value.trim(),phone:$('#d-phone').value.trim(),note:$('#d-note').value.trim()};
@@ -228,19 +239,21 @@ $('#psv').onclick=()=>{
  pays.push({id:Date.now(),dealer:cur,amt:a,date:$('#p-date').value||today(),note:$('#p-note').value.trim()});
  save();ref();shut('ps');toast('Ödeme kaydedildi');
 };
-function sync(){$('#cust').hidden=!(+$('#f-dealer').value||0)===false;$('#pdw').hidden=$('#f-st').value!=='Teslim edildi'}
+function sync(){$('#cust').hidden=!(+$('#f-dealer').value||0)===false;$('#pdw').hidden=$('#f-st').value!=='Teslim edildi';stb()}
 $('#f-dealer').onchange=$('#f-st').onchange=sync;
 $('#per').onchange=render;
-$('#q').oninput=e=>{q=e.target.value;render()};
+$('#q').oninput=e=>{q=e.target.value;lim=50;clearTimeout(qt);qt=setTimeout(render,120)};
 document.addEventListener('click',e=>{
  const t=e.target;
  if(t.classList.contains('sheet')){t.classList.remove('open');return}
  let x;
  if(x=t.closest('[data-x]')){x.closest('.sheet').classList.remove('open');return}
  if(x=t.closest('[data-t]')){tab=+x.dataset.t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===x));$('#v1').hidden=tab!==1;$('#v2').hidden=tab!==2;$('#add').textContent=tab===1?'+ Yeni kayıt':'+ Yeni bayi';return}
- if(x=t.closest('.chip')){filter=x.dataset.f;render();return}
+ if(t.closest('#mb')){lim+=50;render();return}
+ if(x=t.closest('.sb')){$('#f-st').value=x.dataset.s;sync();return}
+ if(x=t.closest('.chip')){filter=x.dataset.f;lim=50;render();return}
  if(x=t.closest('[data-pd]')){arm(x,()=>{pays=pays.filter(p=>p.id!==+x.dataset.pd);save();ref();toast('Ödeme silindi')},'Sil?');return}
- if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else cp(sumTxt());return}
+ if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else sendTxt(sumTxt());return}
  if(x=t.closest('[data-r]')){openForm(+x.dataset.r);return}
  if(x=t.closest('article[data-id]')){openForm(+x.dataset.id);return}
  if(x=t.closest('article[data-d]')){cur=+x.dataset.d;dRender();open('ds')}
