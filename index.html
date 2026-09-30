@@ -83,13 +83,31 @@ section[hidden]{display:none}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sb{display:flex;align-items:center;gap:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:12px;font:inherit;font-size:15px}
 .sb.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}
-.tb{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:12px 6px;font:inherit;font-size:14px}.tb.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}</style></head><body>
+.tb{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:12px 6px;font:inherit;font-size:14px}.tb.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}#st4{grid-template-columns:1fr 1fr}.hero{background:linear-gradient(135deg,#14202b 0%,#26394b 100%);color:#fff;border-radius:18px;padding:14px 16px 16px;margin-bottom:10px;position:relative;overflow:hidden;box-shadow:0 6px 18px rgba(20,32,43,.22)}
+.hero:after{content:"";position:absolute;right:-30px;top:-30px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(229,154,0,.45),transparent 70%)}
+.pp-row{display:flex;gap:6px;margin-bottom:12px;position:relative;z-index:1;overflow-x:auto}
+.pp{border:0;background:rgba(255,255,255,.12);color:#dbe4ea;border-radius:99px;padding:6px 12px;font:inherit;font-size:13px;white-space:nowrap}
+.pp.on{background:var(--acc);color:#14202b;font-weight:700}
+.hl{display:block;color:#a9b8c4;font-size:13px;position:relative;z-index:1}
+.hv{display:block;font-size:34px;letter-spacing:-1px;line-height:1.15;position:relative;z-index:1}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.k{background:var(--card);border:1px solid var(--bd);border-top:3px solid var(--acc);border-radius:14px;padding:9px 10px 10px 12px;min-width:0}
+.k small{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k b{display:block;font-size:clamp(14px,4.3vw,17px);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k1{border-top-color:var(--s2)}.k1 b{color:var(--s2)}.k2{border-top-color:#c0392b}.k3{border-top-color:var(--s1)}
+</style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
-<div class="stats">
-<div class="stat"><b id="s1">0</b><small>Açık iş</small></div>
-<div class="stat"><b id="s2">0 ₺</b><select id="per" aria-label="Dönem"><option value="all">Genel toplam</option><option value="month">Bu ay</option><option value="week">Bu hafta</option><option value="day">Bugün</option></select></div>
-<div class="stat"><b id="s3">0 ₺</b><small>Bayi alacağı</small></div>
+<div class="hero">
+<div class="pp-row"><button class="pp" data-v="all">Tümü</button><button class="pp" data-v="month">Bu ay</button><button class="pp" data-v="week">Bu hafta</button><button class="pp" data-v="day">Bugün</button></div>
+<small class="hl">Genel toplam</small>
+<b class="hv" id="s2">0 ₺</b>
+<select id="per" hidden><option value="all">Genel toplam</option><option value="month">Bu ay</option><option value="week">Bu hafta</option><option value="day">Bugün</option></select>
+</div>
+<div class="kp">
+<div class="k k1"><small id="s4l">Kasaya giren</small><b id="s4">0 ₺</b></div>
+<div class="k k2"><small>Bayi alacağı</small><b id="s3">0 ₺</b></div>
+<div class="k k3"><small>Açık iş</small><b id="s1">0</b></div>
 </div>
 <div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
 <div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
@@ -173,6 +191,10 @@ function render(){
  $('#s1').textContent=items.filter(i=>i.st==='Bekliyor'||i.st==='Tamirde').length;
  const pr=$('#per').value,t0=today(),d0=new Date(),ws=new Date(Date.now()-((d0.getDay()+6)%7)*864e5-d0.getTimezoneOffset()*6e4).toISOString().slice(0,10);
  $('#s2').textContent=money(items.filter(i=>fin(i)&&(pr==='all'||(pr==='day'&&i.date===t0)||(pr==='week'&&i.date>=ws)||(pr==='month'&&(i.date||'').startsWith(m)))).reduce((a,i)=>a+(+i.fee||0),0));
+ const inP=i=>pr==='all'||(pr==='day'&&i.date===t0)||(pr==='week'&&i.date>=ws)||(pr==='month'&&(i.date||'').startsWith(m));
+ const pd=items.filter(i=>fin(i)&&i.paid&&inP(i)).reduce((a,i)=>a+(+i.fee||0),0)+pays.filter(p=>(p.t||'p')==='p'&&inP(p)).reduce((a,p)=>a+(+p.amt||0),0);
+ $('#s4').textContent=money(pd);
+ document.querySelectorAll('.pp').forEach(b=>b.classList.toggle('on',b.dataset.v===pr));
  $('#s3').textContent=money(al);$('#s3').className=al>0?'neg':'';
  $('#chips').innerHTML=['Hepsi',...ST].map(s=>`<button class="chip${s===filter?' on':''}" data-f="${s}">${s}</button>`).join('');
  const t=q.toLocaleLowerCase('tr');
@@ -256,6 +278,7 @@ document.addEventListener('click',e=>{
  if(x=t.closest('[data-x]')){x.closest('.sheet').classList.remove('open');return}
  if(x=t.closest('[data-t]')){tab=+x.dataset.t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===x));$('#v1').hidden=tab!==1;$('#v2').hidden=tab!==2;$('#add').textContent=tab===1?'+ Yeni kayıt':'+ Yeni bayi';return}
  if(t.closest('#mb')){lim+=50;render();return}
+ if(x=t.closest('.pp')){$('#per').value=x.dataset.v;render();return}
  if(x=t.closest('.tb')){setPT(x.dataset.p);return}
  if(x=t.closest('.sb')){$('#f-st').value=x.dataset.s;sync();return}
  if(x=t.closest('.chip')){filter=x.dataset.f;lim=50;render();return}
