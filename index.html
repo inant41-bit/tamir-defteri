@@ -95,6 +95,18 @@ section[hidden]{display:none}
 .k small{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .k b{display:block;font-size:clamp(14px,4.3vw,17px);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .k1{border-top-color:var(--s2)}.k1 b{color:var(--s2)}.k2{border-top-color:#c0392b}.k3{border-top-color:var(--s1)}
+.gcard{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.gcard h3{font-size:15px;margin:0 0 10px}
+.gb{margin-bottom:10px}.gt{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.gk{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:4px}
+.gk i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),#f5c451);border-radius:99px}
+.row2{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.row2 select{width:auto;max-width:55%;padding:7px 10px;font-size:14px}
+.gcs{display:flex;gap:6px;height:160px}
+.gc{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.gcb{position:relative;flex:1;width:100%}
+.gcb i{position:absolute;left:0;right:0;bottom:0;background:var(--s1);border-radius:6px 6px 0 0}
+.gc small{font-size:11px;color:var(--mut);white-space:nowrap}
 </style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
@@ -112,7 +124,7 @@ section[hidden]{display:none}
 <div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
 <div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
 <section id="v1"><div class="stk"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div></div><div id="list"></div><div id="more"></div></section>
-<section id="v2" hidden><div id="dl"></div></section>
+<section id="v2" hidden><div id="gr"></div><div id="dl"></div></section>
 </main>
 <button class="fab" id="add">+ Yeni kayıt</button>
 
@@ -141,6 +153,7 @@ section[hidden]{display:none}
 <div class="two"><div><label for="f-fee">Ücret (₺)</label><input id="f-fee" type="number" inputmode="decimal" min="0"></div><div><label for="f-date">Tarih</label><input id="f-date" type="date"></div></div>
 <label>Durum</label><div class="seg" id="stb"></div><select id="f-st" hidden></select>
 <label class="chk" id="pdw" hidden><input type="checkbox" id="f-paid"> Ödeme alındı</label>
+<div class="acts"><button class="btn" id="fwa" style="flex:1">WhatsApp ile mesaj gönder</button></div>
 <div class="acts"><button class="btn d" id="del" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn" id="fsn">Kaydet + yeni</button><button class="btn p" id="fsv">Kaydet</button></div>
 </div></div>
 
@@ -186,6 +199,34 @@ async function cp(t){try{await navigator.clipboard.writeText(t);toast('Kopyaland
 const card=i=>{const k=ST.indexOf(i.st),w=i.dealer?esc(dn(i.dealer)):esc(i.name||'Bireysel'),pd=i.st==='Teslim edildi'?(i.paid?' · Ödendi':' · Ödeme bekliyor'):'';return `<article class="rw" data-id="${i.id}"><i class="dot s${k}"></i><div class="mid"><b>${esc(i.model)}</b><small>${w}${i.issue?' · '+esc(i.issue):''}</small></div><div class="rt"><b>${money(i.fee)}</b><small>${esc(i.st)}${pd}</small></div></article>`};
 const dlab=d=>!d?'Tarihsiz':d===today()?'Bugün':d===new Date(Date.now()-864e5-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)?'Dün':fmt(d);
 function grp(l){const g={};l.forEach(i=>(g[i.date||'']=g[i.date||'']||[]).push(i));return Object.keys(g).sort().reverse().map(d=>`<div class="dh"><span>${dlab(d)}</span><span>${money(g[d].filter(fin).reduce((a,i)=>a+(+i.fee||0),0))}</span></div><div class="grp">${g[d].map(card).join('')}</div>`).join('')}
+function waNum(p){let n=String(p||'').replace(/\D/g,'');if(!n)return'';if(n.startsWith('00'))n=n.slice(2);else if(n.startsWith('0'))n='90'+n.slice(1);else if(n.length===10)n='90'+n;return n}
+function wa(phone,text){const n=waNum(phone);if(!n){toast('Telefon numarası kayıtlı değil');return}const a=document.createElement('a');a.href='https://wa.me/'+n+'?text='+encodeURIComponent(text);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+function waRec(){
+ const d=dealers.find(x=>x.id===(+$('#f-dealer').value||0)),ph=d?d.phone:$('#f-phone').value,nm=d?d.name:$('#f-name').value.trim(),md=$('#f-model').value.trim()||'Cihaz',st=$('#f-st').value,fee=Number($('#f-fee').value)||0;
+ const hi='Merhaba'+(nm?' '+nm:'')+', ',cg=d?md+' cihazının':md+' cihazınızın',ca=d?md+' cihazını':md+' cihazınızı';
+ const T={'Bekliyor':hi+ca+' teslim aldık, en kısa sürede inceleyeceğiz.','Tamirde':hi+cg+' tamiri devam ediyor, hazır olunca haber vereceğim.','Tamamlandı':hi+cg+' tamiri tamamlandı, teslim alabilirsiniz.'+(fee&&!d?' Ücret: '+money(fee)+'.':''),'Teslim edildi':hi+ca+' teslim ettik, teşekkür ederiz.'};
+ wa(ph,T[st]);
+}
+function waDealer(){
+ const d=dealers.find(x=>x.id===cur);if(!d)return;
+ const b=sumT(cur,'b'),c=sumT(cur,'d');
+ wa(d.phone,'Merhaba '+d.name+', güncel hesap durumunuz:\nToplam iş: '+money(owed(cur))+(b?'\nEklenen borç: '+money(b):'')+(c?'\nİndirim: '+money(c):'')+'\nÖdenen: '+money(paid(cur))+'\nKalan borç: '+money(debt(cur))+'\nMüsait olduğunuzda ödeme yapabilirseniz sevinirim, teşekkürler.');
+}
+$('#fwa').onclick=waRec;
+let gd=0;
+const fm=x=>x.toFixed(1).replace('.0','').replace('.',',');
+const short=n=>n>=1e6?fm(n/1e6)+' Mn':n>=1e3?fm(n/1e3)+' B':String(Math.round(n));
+function chart(inP,pr){
+ if(!dealers.length){$('#gr').innerHTML='';return}
+ const lab={all:'Tüm zamanlar',month:'Bu ay',week:'Bu hafta',day:'Bugün'}[pr];
+ const rows=dealers.map(d=>({d,v:items.filter(i=>i.dealer===d.id&&fin(i)&&inP(i)).reduce((a,i)=>a+(+i.fee||0),0)})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v).slice(0,6),mx=Math.max(1,...rows.map(r=>r.v));
+ const bars=rows.length?rows.map(r=>{const b=debt(r.d.id);return `<div class="gb"><div class="gt"><span>${esc(r.d.name)}</span><b>${money(r.v)}</b></div><div class="gk"><i style="width:${Math.max(3,r.v/mx*100)}%"></i></div>${b>0?`<small class="neg">Kalan borç ${money(b)}</small>`:''}</div>`}).join(''):'<div class="mut">Bu dönemde bayi işi yok.</div>';
+ const now=new Date(),ms=[];for(let k=5;k>=0;k--){const x=new Date(now.getFullYear(),now.getMonth()-k,1);ms.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0'))}
+ const vals=ms.map(m=>items.filter(i=>fin(i)&&(gd?i.dealer===gd:i.dealer>0)&&(i.date||'').startsWith(m)).reduce((a,i)=>a+(+i.fee||0),0)),vm=Math.max(1,...vals),MN=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+ const cols=ms.map((m,k)=>`<div class="gc"><small>${vals[k]?short(vals[k]):'&nbsp;'}</small><div class="gcb"><i style="height:${vals[k]?Math.max(3,vals[k]/vm*100):0}%"></i></div><small>${MN[+m.slice(5)-1]}</small></div>`).join('');
+ $('#gr').innerHTML=`<div class="gcard"><h3>Bayi bazında iş <span class="mut">· ${lab}</span></h3>${bars}</div><div class="gcard"><div class="row2"><h3 style="margin:0">Aylık iş</h3><select id="gsel"><option value="0">Tüm bayiler</option>${dealers.map(d=>`<option value="${d.id}"${d.id===gd?' selected':''}>${esc(d.name)}</option>`).join('')}</select></div><div class="gcs">${cols}</div></div>`;
+}
+document.addEventListener('change',e=>{if(e.target.id==='gsel'){gd=+e.target.value;render()}});
 function render(){
  const m=today().slice(0,7),al=dealers.reduce((a,d)=>a+debt(d.id),0);
  $('#s1').textContent=items.filter(i=>i.st==='Bekliyor'||i.st==='Tamirde').length;
@@ -193,7 +234,7 @@ function render(){
  $('#s2').textContent=money(items.filter(i=>fin(i)&&(pr==='all'||(pr==='day'&&i.date===t0)||(pr==='week'&&i.date>=ws)||(pr==='month'&&(i.date||'').startsWith(m)))).reduce((a,i)=>a+(+i.fee||0),0));
  const inP=i=>pr==='all'||(pr==='day'&&i.date===t0)||(pr==='week'&&i.date>=ws)||(pr==='month'&&(i.date||'').startsWith(m));
  const pd=items.filter(i=>fin(i)&&i.paid&&inP(i)).reduce((a,i)=>a+(+i.fee||0),0)+pays.filter(p=>(p.t||'p')==='p'&&inP(p)).reduce((a,p)=>a+(+p.amt||0),0);
- $('#s4').textContent=money(pd);
+ $('#s4').textContent=money(pd);chart(inP,pr);
  document.querySelectorAll('.pp').forEach(b=>b.classList.toggle('on',b.dataset.v===pr));
  $('#s3').textContent=money(al);$('#s3').className=al>0?'neg':'';
  $('#chips').innerHTML=['Hepsi',...ST].map(s=>`<button class="chip${s===filter?' on':''}" data-f="${s}">${s}</button>`).join('');
@@ -210,7 +251,8 @@ function dRender(){
 <div class="stats"><div class="stat"><b class="${b>0?'neg':'pos'}">${money(b)}</b><small>Kalan borç</small></div><div class="stat"><b>${money(owed(cur))}</b><small>Biten iş</small></div><div class="stat"><b>${money(paid(cur))}</b><small>Ödenen</small></div></div>
 ${sumT(cur,'b')||sumT(cur,'d')?`<div class="mut">Borç eklendi ${money(sumT(cur,'b'))} · İndirim ${money(sumT(cur,'d'))}</div>`:''}
 <div class="acts"><button class="btn p" data-a="pay">Ödeme / düzeltme</button><button class="btn" data-a="new">Cihaz ekle</button></div>
-<div class="acts"><button class="btn" data-a="sum">Özet gönder</button><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
+<div class="acts"><button class="btn" data-a="wa">WhatsApp hatırlat</button><button class="btn" data-a="sum">Özet gönder</button></div>
+<div class="acts"><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
 <h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${fin(i)?(i.paid?' · ödendi':''):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
 <h3>Ödeme ve düzeltmeler (${ps.length})</h3>${ps.map(p=>{const t=p.t||'p',v=(t==='b'?1:-1)*p.amt;return `<div class="mr"><span>${fmt(p.date)} · ${({p:'Ödeme',d:'İndirim',b:'Borç eklendi'})[t]}${p.note?' · '+esc(p.note):''}</span><span><b class="${v>0?'neg':'pos'}">${v>=0?'+':'−'}${money(Math.abs(v))}</b><button class="x" data-pd="${p.id}" aria-label="Kaydı sil">×</button></span></div>`}).join('')||'<div class="mut">Hareket yok</div>'}`;
 }
@@ -283,7 +325,7 @@ document.addEventListener('click',e=>{
  if(x=t.closest('.sb')){$('#f-st').value=x.dataset.s;sync();return}
  if(x=t.closest('.chip')){filter=x.dataset.f;lim=50;render();return}
  if(x=t.closest('[data-pd]')){arm(x,()=>{pays=pays.filter(p=>p.id!==+x.dataset.pd);save();ref();toast('Ödeme silindi')},'Sil?');return}
- if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else sendTxt(sumTxt());return}
+ if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else if(a==='wa')waDealer();else sendTxt(sumTxt());return}
  if(x=t.closest('[data-r]')){openForm(+x.dataset.r);return}
  if(x=t.closest('article[data-id]')){openForm(+x.dataset.id);return}
  if(x=t.closest('article[data-d]')){cur=+x.dataset.d;dRender();open('ds')}
