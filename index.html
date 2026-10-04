@@ -118,7 +118,20 @@ section[hidden]{display:none}
 
 <div class="sheet" id="bs"><div class="panel">
 <h2>Yedek</h2>
-<p class="mut">Kayıtlar, bayiler ve ödemeler yalnızca bu telefonda durur. Yedeği dosya olarak iCloud Drive'a veya Google Drive'a kaydet.</p>
+<h3>Otomatik yedek (GitHub)</h3>
+<p class="mut" id="gst"></p>
+<div id="gform">
+<label for="g-user">GitHub kullanıcı adı</label><input id="g-user" value="inant41-bit" autocapitalize="off" autocomplete="off" autocorrect="off">
+<label for="g-repo">Yedek deposunun adı (Private olmalı)</label><input id="g-repo" value="tamir-yedek" autocapitalize="off" autocomplete="off" autocorrect="off">
+<label for="g-tok">Erişim anahtarı (token)</label><input id="g-tok" type="password" autocomplete="off">
+<div class="acts"><button class="btn p" id="gcon">Bağla ve test et</button></div>
+</div>
+<div id="gact" hidden>
+<div class="acts"><button class="btn p" id="gnow">Şimdi yedekle</button><button class="btn" id="grest">GitHub'dan geri yükle</button></div>
+<div class="acts"><button class="btn d" id="gdis">Bağlantıyı kaldır</button></div>
+</div>
+<h3>Dosya olarak yedek</h3>
+<p class="mut">Kayıtlar, bayiler ve ödemeler telefonda durur. Yedeği dosya olarak iCloud Drive'a veya Google Drive'a da kaydedebilirsin.</p>
 <div class="acts"><button class="btn p" id="bsv">Dosya olarak kaydet</button></div>
 <p class="mut" id="bls"></p>
 <label for="b-file">Geri yükle: yedek dosyasını seç</label><input type="file" id="b-file" accept=".json,application/json">
@@ -179,7 +192,7 @@ const sumT=(d,t)=>pays.filter(p=>p.dealer===d&&(p.t||'p')===t).reduce((a,p)=>a+(
 const paid=d=>sumT(d,'p')+items.filter(i=>i.dealer===d&&fin(i)&&i.paid).reduce((a,i)=>a+(+i.fee||0),0);
 const debt=d=>owed(d)+sumT(d,'b')-paid(d)-sumT(d,'d');
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
-function save(){try{localStorage.setItem(K[0],JSON.stringify(items));localStorage.setItem(K[1],JSON.stringify(dealers));localStorage.setItem(K[2],JSON.stringify(pays))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
+function save(){ghQ();try{localStorage.setItem(K[0],JSON.stringify(items));localStorage.setItem(K[1],JSON.stringify(dealers));localStorage.setItem(K[2],JSON.stringify(pays))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
 function arm(b,fn,txt){if(b.dataset.a){fn();return}b.dataset.a=1;b.dataset.o=b.textContent;b.textContent=txt||'Emin misin? Sil';b.classList.add('arm');setTimeout(()=>{delete b.dataset.a;b.textContent=b.dataset.o;b.classList.remove('arm')},3000)}
 const open=id=>$('#'+id).classList.add('open'),shut=id=>$('#'+id).classList.remove('open');
 async function sendTxt(t){try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e&&e.name==='AbortError')return}cp(t)}
@@ -205,6 +218,65 @@ function waDealer(){
  wa(d.phone,'Merhaba, güncel hesap durumunuz:\nToplam iş: '+money(owed(cur))+(b?'\nEklenen borç: '+money(b):'')+(c?'\nİndirim: '+money(c):'')+'\nÖdenen: '+money(paid(cur))+'\nKalan borç: '+money(debt(cur))+'\nMüsait olduğunuzda ödeme yapabilirseniz sevinirim, teşekkürler.');
 }
 $('#fwa').onclick=waRec;
+const GK='tamir-gh',GD='tamir-gh-dirty',GL='tamir-gh-last',GS='tamir-gh-sync';
+let gbusy=false,gt,gver=0,gerr='';
+const ls=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsw=(k,v)=>{try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}};
+const ghCfg=()=>{try{return JSON.parse(ls(GK)||'null')}catch(e){return null}};
+const hdr=t=>({Authorization:'Bearer '+t,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'});
+const gu=c=>`https://api.github.com/repos/${c.owner}/${c.repo}/contents/yedek.json`;
+const b64=s=>{const u=new TextEncoder().encode(s);let r='';for(let i=0;i<u.length;i+=8192)r+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(r)};
+const lastAny=()=>{const l=+ls(GL)||0,b=l?new Date(l-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10):'',a=lastB();return a>b?a:b};
+function ghQ(){if(!ghCfg())return;gver++;lsw(GD,'1');clearTimeout(gt);gt=setTimeout(()=>ghRun(),90000)}
+function gui(){
+ const c=ghCfg(),l=+ls(GL)||0;
+ $('#gform').hidden=!!c;$('#gact').hidden=!c;
+ $('#gst').textContent=c?('Bağlı: '+c.owner+'/'+c.repo+(l?' · Son yedek: '+new Date(l).toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'}):' · Henüz yedek gönderilmedi')+(ls(GD)==='1'?' · Gönderilecek değişiklik var':'')+(gerr?' · '+gerr:'')):'Bağlı değil. Bağlarsan kayıtların her değişiklikte özel bir GitHub deposuna kendiliğinden yedeklenir.';
+}
+async function ghRun(force){
+ const c=ghCfg();if(!c||gbusy||!navigator.onLine)return;
+ if(!force&&ls(GD)!=='1')return;
+ gbusy=true;gerr='';
+ try{
+  const H=hdr(c.token),g=await fetch(gu(c)+'?_='+Date.now(),{headers:H});let sha;
+  if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw{s:g.status};
+  if(sha&&ls(GS)!=='1'){gerr='Depoda yedek var, önce "GitHub\'dan geri yükle"ye bas';return}
+  const v=gver,txt=JSON.stringify({v:2,items,dealers,pays});
+  const r=await fetch(gu(c),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:'Yedek '+new Date().toISOString().slice(0,19).replace('T',' '),content:b64(txt),...(sha?{sha}:{})})});
+  if(!r.ok)throw{s:r.status};
+  lsw(GS,'1');lsw(GL,String(Date.now()));if(v===gver)lsw(GD,null);
+  if(force)toast('GitHub yedeği alındı');
+ }catch(e){
+  const s=e&&e.s;gerr=s===401?'Anahtar geçersiz veya süresi dolmuş':s===403?'İzin yok ya da limit doldu':s===404?'Depo bulunamadı':(s===409||s===422)?'Çakışma, tekrar denenecek':'Bağlantı sorunu, tekrar denenecek';
+  if(s===409||s===422)ghQ();
+ }finally{gbusy=false;gui();bnr()}
+}
+$('#gcon').onclick=async()=>{
+ const owner=$('#g-user').value.trim(),repo=$('#g-repo').value.trim(),token=$('#g-tok').value.trim();
+ if(!owner||!repo||!token){toast('Üç alanı da doldur');return}
+ try{
+  const r=await fetch(`https://api.github.com/repos/${owner}/${repo}?_=${Date.now()}`,{headers:hdr(token)});
+  if(r.status===401){toast('Anahtar geçersiz');return}
+  if(!r.ok){toast('Depo bulunamadı, adı ve anahtarın iznini kontrol et');return}
+  const j=await r.json();
+  if(!j.private){toast('Bu depo herkese açık! Private bir depo kullan');return}
+  if(j.permissions&&!j.permissions.push){toast('Anahtarın yazma izni yok');return}
+  lsw(GK,JSON.stringify({owner,repo,token}));lsw(GS,null);$('#g-tok').value='';gui();
+  await ghRun(true);if(gerr)toast(gerr);
+ }catch(e){toast('Bağlanılamadı, internetini kontrol et')}
+};
+$('#gnow').onclick=async()=>{await ghRun(true);if(gerr)toast(gerr)};
+$('#grest').onclick=async()=>{
+ const c=ghCfg();if(!c)return;
+ try{
+  const r=await fetch(gu(c)+'?_='+Date.now(),{headers:{...hdr(c.token),Accept:'application/vnd.github.raw+json'}});
+  if(!r.ok){toast(r.status===404?'Depoda yedek yok':'Alınamadı ('+r.status+')');return}
+  if(imp(await r.text())){lsw(GS,'1');gerr='';gui()}
+ }catch(e){toast('Bağlanılamadı')}
+};
+$('#gdis').onclick=e=>arm(e.target,()=>{[GK,GD,GL,GS].forEach(k=>lsw(k,null));gerr='';gui();toast('Bağlantı kaldırıldı')},'Emin misin?');
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ls(GD)==='1'){clearTimeout(gt);ghRun()}});
+window.addEventListener('online',()=>ghRun());
 function render(){calcAM();
  const m=today().slice(0,7),al=dealers.reduce((a,d)=>a+debt(d.id),0);
  $('#s1').textContent=items.filter(i=>i.st==='Bekliyor'||i.st==='Tamirde').length;
@@ -312,8 +384,8 @@ document.addEventListener('click',e=>{
 const LB='tamir-son-yedek';
 const lastB=()=>{try{return localStorage.getItem(LB)||''}catch(e){return''}};
 const dAgo=s=>s?Math.floor((Date.now()-new Date(s+'T00:00'))/864e5):null;
-function bnr(){const a=dAgo(lastB()),n=items.length+dealers.length+pays.length>0;$('#bn').hidden=!(n&&(a===null||a>=7));$('#bnt').textContent=a===null?'Henüz yedek almadın.':'Son yedek '+a+' gün önce.'}
-function openB(){$('#b-out').value=JSON.stringify({v:2,items,dealers,pays});$('#b-in').value='';const a=dAgo(lastB());$('#bls').textContent=a===null?'Henüz yedek alınmadı.':'Son yedek: '+(a===0?'bugün':a+' gün önce')+'.';open('bs')}
+function bnr(){const a=dAgo(lastAny()),n=items.length+dealers.length+pays.length>0;$('#bn').hidden=!(n&&(a===null||a>=7));$('#bnt').textContent=a===null?'Henüz yedek almadın.':'Son yedek '+a+' gün önce.'}
+function openB(){$('#b-out').value=JSON.stringify({v:2,items,dealers,pays});$('#b-in').value='';const a=dAgo(lastB());$('#bls').textContent=a===null?'Henüz yedek alınmadı.':'Son yedek: '+(a===0?'bugün':a+' gün önce')+'.';gui();open('bs')}
 $('#bkb').onclick=$('#bnb').onclick=openB;
 $('#bsv').onclick=async()=>{
  const txt=JSON.stringify({v:2,items,dealers,pays}),name='tamir-yedek-'+today()+'.json',f=new File([txt],name,{type:'application/json'});
@@ -329,8 +401,8 @@ const mg=(a,s)=>{let n=0;(s||[]).forEach(o=>{if(o&&o.id){const i=a.findIndex(x=>
 function imp(t){
  try{const a=JSON.parse(t);let n=0;
   if(Array.isArray(a))n=mg(items,a);else n=mg(items,a.items)+mg(dealers,a.dealers)+mg(pays,a.pays);
-  if(!n)throw 0;save();ref();shut('bs');toast(n+' kayıt yüklendi');
- }catch(e){toast('Yedek geçersiz')}
+  if(!n)throw 0;save();ref();shut('bs');toast(n+' kayıt yüklendi');return true
+ }catch(e){toast('Yedek geçersiz');return false}
 }
 $('#bld').onclick=()=>imp($('#b-in').value);
 $('#b-file').onchange=async e=>{const f=e.target.files[0];if(f)imp(await f.text());e.target.value=''};
@@ -345,5 +417,6 @@ const mo=new MutationObserver(()=>{const nn=document.querySelectorAll('.sheet.op
  else if(!any&&lk){b.position='';b.top='';b.left='';b.right='';window.scrollTo(0,sy);lk=false}});
 document.querySelectorAll('.sheet').forEach(s=>mo.observe(s,{attributes:true,attributeFilter:['class']}));
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+gui();ghRun();
 render();bnr();
 </script></body></html>
