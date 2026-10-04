@@ -95,6 +95,12 @@ section[hidden]{display:none}
 .k small{display:block;color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .k b{display:block;font-size:clamp(14px,4.3vw,17px);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .k1{border-top-color:var(--s2)}.k1 b{color:var(--s2)}.k2{border-top-color:#c0392b}.k3{border-top-color:var(--s1)}
+.qr{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:99px;padding:7px 13px;font:inherit;font-size:14px}
+#imei-h{display:block;margin-top:4px;font-size:13px}
+.afc{background:var(--card);border:1px solid var(--acc);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.afc .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.afc .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.afc small{display:block;color:var(--mut);font-size:12px}.afc b{font-size:15px}
 </style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
@@ -111,7 +117,7 @@ section[hidden]{display:none}
 </div>
 <div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
 <div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
-<section id="v1"><div class="stk"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div></div><div id="list"></div><div id="more"></div></section>
+<section id="v1"><div class="stk"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="afb">Filtre</button><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div></div><div id="afs"></div><div id="list"></div><div id="more"></div></section>
 <section id="v2" hidden><div id="dl"></div></section>
 </main>
 <button class="fab" id="add">+ Yeni kayıt</button>
@@ -148,7 +154,7 @@ section[hidden]{display:none}
 <label for="f-dealer">Bayi</label><select id="f-dealer"></select>
 <label for="f-model">Cihaz modeli *</label><datalist id="dm"></datalist><input id="f-model" list="dm" placeholder="Örn. iPhone 12, Galaxy A54">
 <div class="two" id="cust"><div><label for="f-name">Müşteri</label><input id="f-name"></div><div><label for="f-phone">Telefon</label><input id="f-phone" type="tel" inputmode="tel"></div></div>
-<label for="f-imei">IMEI / seri no</label><input id="f-imei" inputmode="numeric">
+<label for="f-imei">IMEI / seri no</label><input id="f-imei" inputmode="numeric"><small id="imei-h"></small>
 <label for="f-issue">Arıza</label><textarea id="f-issue" placeholder="Ekran kırık, şarj almıyor..."></textarea>
 <label for="f-work">Yapılan işlem</label><textarea id="f-work" placeholder="Ekran değişti, soket temizlendi..."></textarea>
 <div class="two"><div><label for="f-fee">Ücret (₺)</label><input id="f-fee" type="number" inputmode="decimal" min="0"></div><div><label for="f-date">Tarih</label><input id="f-date" type="date"></div></div>
@@ -173,6 +179,15 @@ section[hidden]{display:none}
 <label for="p-note">Not (nakit, havale...)</label><input id="p-note">
 <div class="acts"><button class="btn" id="pall">Tüm borç</button><button class="btn" data-x>Vazgeç</button><button class="btn p" id="psv">Kaydet</button></div>
 </div></div>
+<div class="sheet" id="as"><div class="panel">
+<h2>Gelişmiş filtre</h2>
+<div class="two"><div><label for="a-from">Başlangıç tarihi</label><input id="a-from" type="date"></div><div><label for="a-to">Bitiş tarihi</label><input id="a-to" type="date"></div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px"><button type="button" class="qr" data-q="m">Bu ay</button><button type="button" class="qr" data-q="p">Geçen ay</button><button type="button" class="qr" data-q="30">Son 30 gün</button></div>
+<label for="a-dealer">Bayi</label><select id="a-dealer"></select>
+<label for="a-pay">Ödeme durumu</label><select id="a-pay"><option value="all">Hepsi</option><option value="paid">Ödenmiş</option><option value="unpaid">Ödenmemiş</option></select>
+<div class="acts"><button class="btn" id="a-clr">Temizle</button><button class="btn" data-x>Vazgeç</button><button class="btn p" id="a-ok">Uygula</button></div>
+</div></div>
+<div class="sheet" id="cs"><div class="panel" id="cd"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -277,6 +292,58 @@ $('#grest').onclick=async()=>{
 $('#gdis').onclick=e=>arm(e.target,()=>{[GK,GD,GL,GS].forEach(k=>lsw(k,null));gerr='';gui();toast('Bağlantı kaldırıldı')},'Emin misin?');
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&ls(GD)==='1'){clearTimeout(gt);ghRun()}});
 window.addEventListener('online',()=>ghRun());
+let AF={from:'',to:'',dealer:'all',pay:'all'};
+const ymd=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const afOn=()=>!!(AF.from||AF.to||AF.dealer!=='all'||AF.pay!=='all');
+const af=i=>(!AF.from||(i.date||'')>=AF.from)&&(!AF.to||(i.date||'')<=AF.to)&&(AF.dealer==='all'||(AF.dealer==='ind'?!i.dealer:i.dealer===+AF.dealer))&&(AF.pay==='all'||(AF.pay==='paid'?pst(i)==='ödendi':(!!pst(i)&&pst(i)!=='ödendi')));
+function ledger(id){
+ const R=[];
+ items.filter(i=>i.dealer===id&&fin(i)&&(+i.fee||0)!==0).forEach(i=>{const f=+i.fee||0;R.push({d:i.date||'',o:0,k:i.id,txt:i.model+(i.issue?' · '+i.issue:''),v:f});if(i.paid)R.push({d:i.date||'',o:2,k:i.id,txt:'Ödeme alındı · '+i.model,v:-f})});
+ pays.filter(p=>p.dealer===id).forEach(p=>{const t=p.t||'p',n=p.note?' · '+p.note:'',d=p.date||'';R.push(t==='b'?{d,o:1,k:p.id,txt:'Borç eklendi'+n,v:+p.amt}:t==='d'?{d,o:3,k:p.id,txt:'İndirim'+n,v:-p.amt}:{d,o:2,k:p.id,txt:'Ödeme'+n,v:-p.amt})});
+ R.sort((a,b)=>a.d.localeCompare(b.d)||a.o-b.o||a.k-b.k);
+ let b=0;R.forEach(r=>{b+=r.v;r.bal=b});return R;
+}
+function ledHTML(){
+ const R=ledger(cur),b=debt(cur);
+ return `<h2>Cari defter</h2><div class="stats" style="grid-template-columns:1fr"><div class="stat"><b class="${b>0?'neg':'pos'}">${money(b)}</b><small>Güncel bakiye (kalan borç)</small></div></div><div class="acts"><button class="btn" data-a="lsend">Ekstre gönder</button><button class="btn" data-x>Kapat</button></div>${R.length?[...R].reverse().map(r=>`<div class="mr"><span>${fmt(r.d)} · ${esc(r.txt)}<br><small class="mut">Bakiye ${money(r.bal)}</small></span><b class="${r.v>0?'neg':'pos'}">${r.v>0?'+':'−'}${money(Math.abs(r.v))}</b></div>`).join(''):'<div class="mut" style="margin-top:12px">Henüz hareket yok</div>'}`;
+}
+function openLed(){$('#cd').innerHTML=ledHTML();open('cs')}
+function ledTxt(){return ['Cari ekstre','',...ledger(cur).map(r=>fmt(r.d)+' '+r.txt+': '+(r.v>0?'+':'-')+money(Math.abs(r.v))+' (bakiye '+money(r.bal)+')'),'','Kalan borç: '+money(debt(cur))].join('\n')}
+function afTot(l){
+ const inR=d=>(!AF.from||(d||'')>=AF.from)&&(!AF.to||(d||'')<=AF.to);
+ const sc=AF.dealer==='all'?dealers:AF.dealer==='ind'?[]:dealers.filter(d=>d.id===+AF.dealer),ids=new Set(sc.map(d=>d.id));
+ const inS=i=>AF.dealer==='all'||(AF.dealer==='ind'?!i.dealer:i.dealer===+AF.dealer);
+ const jb=l.filter(fin).reduce((a,i)=>a+(+i.fee||0),0);
+ const pay=items.filter(i=>fin(i)&&i.paid&&inS(i)&&inR(i.date)).reduce((a,i)=>a+(+i.fee||0),0)+pays.filter(p=>(p.t||'p')==='p'&&ids.has(p.dealer)&&inR(p.date)).reduce((a,p)=>a+(+p.amt||0),0);
+ let bal=null;
+ if(sc.length){bal=0;sc.forEach(d=>{let b=0;ledger(d.id).forEach(r=>{if(!AF.to||r.d<=AF.to)b=r.bal});bal+=b})}
+ return{jb,pay,bal};
+}
+function afHTML(l){
+ const T=afTot(l),rg=(AF.from||AF.to)?(AF.from?fmt(AF.from):'…')+' – '+(AF.to?fmt(AF.to):'…'):'Tüm tarihler',sc=AF.dealer==='all'?'Tümü':AF.dealer==='ind'?'Bireysel müşteri':dn(+AF.dealer);
+ return `<div class="afc"><div class="top"><span class="mut">${rg} · ${esc(sc)} · ${l.length} kayıt</span><button class="btn" id="afx" style="padding:6px 10px">Temizle</button></div><div class="row3"><div><small>Biten iş</small><b>${money(T.jb)}</b></div><div><small>Alınan ödeme</small><b class="pos">${money(T.pay)}</b></div>${T.bal!==null?`<div><small>Bakiye${AF.to?' · '+fmt(AF.to):''}</small><b class="${T.bal>0?'neg':'pos'}">${money(T.bal)}</b></div>`:'<div></div>'}</div></div>`;
+}
+function openAF(){
+ $('#a-from').value=AF.from;$('#a-to').value=AF.to;$('#a-pay').value=AF.pay;
+ $('#a-dealer').innerHTML='<option value="all">Tüm bayiler ve müşteriler</option><option value="ind">Sadece bireysel müşteri</option>'+dealers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+ $('#a-dealer').value=AF.dealer;open('as');
+}
+$('#afb').onclick=openAF;
+$('#a-ok').onclick=()=>{const f=$('#a-from').value,t=$('#a-to').value;if(f&&t&&f>t){toast('Başlangıç tarihi bitişten sonra olamaz');return}AF={from:f,to:t,dealer:$('#a-dealer').value,pay:$('#a-pay').value};lim=50;render();shut('as')};
+$('#a-clr').onclick=()=>{AF={from:'',to:'',dealer:'all',pay:'all'};lim=50;render();shut('as')};
+const luhn=s=>{let t=0;for(let i=0;i<15;i++){let d=+s[14-i];if(i%2){d*=2;if(d>9)d-=9}t+=d}return t%10===0};
+const imeiN=v=>String(v||'').replace(/[\s-]/g,'');
+function imeiProb(v){const s=imeiN(v);if(!s||!/^\d+$/.test(s))return'';if(s.length!==15)return'IMEI 15 haneli olmalı ('+s.length+' hane girdin)';return luhn(s)?'':'IMEI geçersiz görünüyor, rakamları kontrol et'}
+let imeiOk=false;
+function imeiHint(){
+ const v=$('#f-imei').value,p=imeiProb(v),s=imeiN(v),h=$('#imei-h');
+ if(p){h.className='neg';h.textContent=p;return}
+ const d=s?items.find(x=>x.id!==editId&&imeiN(x.imei)===s):null;
+ if(d){h.className='mut';h.textContent='Bu IMEI daha önce kayıtlı: '+d.model+(d.date?' · '+fmt(d.date):'');return}
+ if(/^\d{15}$/.test(s)){h.className='pos';h.textContent='IMEI geçerli';return}
+ h.textContent='';
+}
+$('#f-imei').oninput=()=>{imeiOk=false;imeiHint()};
 function render(){calcAM();
  const m=today().slice(0,7),al=dealers.reduce((a,d)=>a+debt(d.id),0);
  $('#s1').textContent=items.filter(i=>i.st==='Bekliyor'||i.st==='Tamirde').length;
@@ -289,8 +356,9 @@ function render(){calcAM();
  $('#s3').textContent=money(al);$('#s3').className=al>0?'neg':'';
  $('#chips').innerHTML=['Hepsi',...ST].map(s=>`<button class="chip${s===filter?' on':''}" data-f="${s}">${s}</button>`).join('');
  const t=q.toLocaleLowerCase('tr');
- const l=items.filter(i=>(filter==='Hepsi'||i.st===filter)&&(!t||[dn(i.dealer),i.name,i.phone,i.model,i.imei,i.issue,i.work].join(' ').toLocaleLowerCase('tr').includes(t))).sort(byD);
+ const l=items.filter(i=>(filter==='Hepsi'||i.st===filter)&&af(i)&&(!t||[dn(i.dealer),i.name,i.phone,i.model,i.imei,i.issue,i.work].join(' ').toLocaleLowerCase('tr').includes(t))).sort(byD);
  $('#list').innerHTML=l.length?grp(l.slice(0,lim)):`<div class="empty">${items.length?'Bu aramaya uyan kayıt yok.':'Henüz kayıt yok. "Yeni kayıt" ile ilk cihazı ekle.'}</div>`;
+ $('#afs').innerHTML=afOn()?afHTML(l):'';$('#afb').classList.toggle('p',afOn());
  $('#more').innerHTML=l.length>lim?`<button class="btn" id="mb" style="width:100%;margin-top:12px">Daha fazla göster (${l.length-lim})</button>`:'';
  $('#dl').innerHTML=dealers.length?'<div class="grp">'+[...dealers].sort((a,b)=>debt(b.id)-debt(a.id)).map(d=>{const b=debt(d.id);return `<article class="rw" data-d="${d.id}"><i class="dot ${b>0?'s0':'s2'}"></i><div class="mid"><b>${esc(d.name)}</b><small>${items.filter(i=>i.dealer===d.id).length} cihaz · Ödenen ${money(paid(d.id))}</small></div><div class="rt"><b class="${b>0?'neg':'pos'}">${b>0?money(b):'Borç yok'}</b></div></article>`}).join('')+'</div>':'<div class="empty">Henüz bayi yok. "Yeni bayi" ile ekle.</div>';
 }
@@ -302,7 +370,7 @@ function dRender(){
 ${sumT(cur,'b')||sumT(cur,'d')?`<div class="mut">Borç eklendi ${money(sumT(cur,'b'))} · İndirim ${money(sumT(cur,'d'))}</div>`:''}
 <div class="acts"><button class="btn p" data-a="pay">Ödeme / düzeltme</button><button class="btn" data-a="new">Cihaz ekle</button></div>
 <div class="acts"><button class="btn" data-a="wa">WhatsApp hatırlat</button><button class="btn" data-a="sum">Özet gönder</button></div>
-<div class="acts"><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
+<div class="acts"><button class="btn" data-a="led">Cari defter</button><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
 <h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${fin(i)?pstH(i):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
 <h3>Ödeme ve düzeltmeler (${ps.length})</h3>${ps.map(p=>{const t=p.t||'p',v=(t==='b'?1:-1)*p.amt;return `<div class="mr"><span>${fmt(p.date)} · ${({p:'Ödeme',d:'İndirim',b:'Borç eklendi'})[t]}${p.note?' · '+esc(p.note):''}</span><span><b class="${v>0?'neg':'pos'}">${v>=0?'+':'−'}${money(Math.abs(v))}</b><button class="x" data-pd="${p.id}" aria-label="Kaydı sil">×</button></span></div>`}).join('')||'<div class="mut">Hareket yok</div>'}`;
 }
@@ -319,7 +387,7 @@ function openForm(id,dl){
  editId=id;const i=items.find(x=>x.id===id)||{date:today(),st:ST[0],dealer:dl||0};
  $('#f-dealer').innerHTML='<option value="0">Bireysel müşteri</option>'+dealers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
  F.forEach(k=>$('#f-'+k).value=i[k]==null?'':i[k]);
- $('#f-paid').checked=!!i.paid;sync();$('#fsn').hidden=!!id;$('#dm').innerHTML=[...new Set(items.map(x=>x.model).filter(Boolean))].slice(-80).map(m=>`<option value="${esc(m)}">`).join('');$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
+ $('#f-paid').checked=!!i.paid;sync();imeiOk=false;imeiHint();$('#fsn').hidden=!!id;$('#dm').innerHTML=[...new Set(items.map(x=>x.model).filter(Boolean))].slice(-80).map(m=>`<option value="${esc(m)}">`).join('');$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
  const d=$('#del');d.hidden=!id;d.textContent='Sil';d.classList.remove('arm');delete d.dataset.a;open('fs');
 }
 function openDF(id){
@@ -336,6 +404,7 @@ $('#add').onclick=()=>tab===1?openForm(null):openDF(null);
 function sv(){
  const o={};F.forEach(k=>o[k]=$('#f-'+k).value.trim());
  if(!o.model){toast('Cihaz modelini yaz');$('#f-model').focus();return false}
+ if(imeiProb(o.imei)&&!imeiOk){imeiOk=true;toast("IMEI hatalı görünüyor, yine de kaydetmek için Kaydet'e tekrar bas");return false}
  o.fee=o.fee===''?0:Number(o.fee);o.dealer=+o.dealer||0;o.paid=$('#f-paid').checked&&o.st==='Teslim edildi';if(o.dealer){o.name='';o.phone=''}
  if(editId){const i=items.findIndex(x=>x.id===editId);items[i]={...items[i],...o}}else items.push({id:Date.now(),...o});
  save();ref();toast('Kaydedildi');return true;
@@ -371,12 +440,14 @@ document.addEventListener('click',e=>{
  if(x=t.closest('[data-x]')){x.closest('.sheet').classList.remove('open');return}
  if(x=t.closest('[data-t]')){tab=+x.dataset.t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===x));$('#v1').hidden=tab!==1;$('#v2').hidden=tab!==2;$('#add').textContent=tab===1?'+ Yeni kayıt':'+ Yeni bayi';return}
  if(t.closest('#mb')){lim+=50;render();return}
+ if(t.closest('#afx')){AF={from:'',to:'',dealer:'all',pay:'all'};lim=50;render();return}
+ if(x=t.closest('.qr')){const n=new Date(),y=n.getFullYear(),m=n.getMonth(),q=x.dataset.q;let f,e;if(q==='m'){f=new Date(y,m,1);e=new Date(y,m+1,0)}else if(q==='p'){f=new Date(y,m-1,1);e=new Date(y,m,0)}else{f=new Date(Date.now()-29*864e5);e=n}$('#a-from').value=ymd(f);$('#a-to').value=ymd(e);return}
  if(x=t.closest('.pp')){$('#per').value=x.dataset.v;render();return}
  if(x=t.closest('.tb')){setPT(x.dataset.p);return}
  if(x=t.closest('.sb')){$('#f-st').value=x.dataset.s;sync();return}
  if(x=t.closest('.chip')){filter=x.dataset.f;lim=50;render();return}
  if(x=t.closest('[data-pd]')){arm(x,()=>{pays=pays.filter(p=>p.id!==+x.dataset.pd);save();ref();toast('Ödeme silindi')},'Sil?');return}
- if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else if(a==='wa')waDealer();else sendTxt(sumTxt());return}
+ if(x=t.closest('[data-a]')){const a=x.dataset.a;if(a==='pay')openPay();else if(a==='new')openForm(null,cur);else if(a==='ed')openDF(cur);else if(a==='wa')waDealer();else if(a==='led')openLed();else if(a==='lsend')sendTxt(ledTxt());else sendTxt(sumTxt());return}
  if(x=t.closest('[data-r]')){openForm(+x.dataset.r);return}
  if(x=t.closest('article[data-id]')){openForm(+x.dataset.id);return}
  if(x=t.closest('article[data-d]')){cur=+x.dataset.d;dRender();open('ds')}
