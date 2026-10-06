@@ -202,6 +202,7 @@ const fmt=d=>d?d.split('-').reverse().join('.'):'';
 const byD=(a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id;
 const fin=i=>i.st==='Tamamlandı'||i.st==='Teslim edildi';const bor=i=>i.st==='Teslim edildi';
 const dn=id=>(dealers.find(d=>d.id===id)||{}).name||'';
+const biten=d=>items.filter(i=>i.dealer===d&&fin(i)).reduce((a,i)=>a+(+i.fee||0),0);
 const owed=d=>items.filter(i=>i.dealer===d&&bor(i)).reduce((a,i)=>a+(+i.fee||0),0);
 const sumT=(d,t)=>pays.filter(p=>p.dealer===d&&(p.t||'p')===t).reduce((a,p)=>a+(+p.amt||0),0);
 const paid=d=>sumT(d,'p')+items.filter(i=>i.dealer===d&&bor(i)&&i.paid).reduce((a,i)=>a+(+i.fee||0),0);
@@ -366,7 +367,7 @@ function dRender(){
  const d=dealers.find(x=>x.id===cur);if(!d)return;
  const its=items.filter(i=>i.dealer===cur).sort(byD),ps=pays.filter(p=>p.dealer===cur).sort((a,b)=>b.date.localeCompare(a.date)),b=debt(cur);
  $('#dd').innerHTML=`<h2>${esc(d.name)}</h2><div class="mut">${d.phone?`<a href="tel:${esc(d.phone)}" style="color:var(--acc)">${esc(d.phone)}</a>`:''}${d.phone&&d.note?' · ':''}${esc(d.note)}</div>
-<div class="stats"><div class="stat"><b class="${b>0?'neg':'pos'}">${money(b)}</b><small>Kalan borç</small></div><div class="stat"><b>${money(owed(cur))}</b><small>Biten iş</small></div><div class="stat"><b>${money(paid(cur))}</b><small>Ödenen</small></div></div>
+<div class="stats"><div class="stat"><b class="${b>0?'neg':'pos'}">${money(b)}</b><small>Kalan borç</small></div><div class="stat"><b>${money(biten(cur))}</b><small>Biten iş</small></div><div class="stat"><b>${money(paid(cur))}</b><small>Ödenen</small></div></div>
 ${sumT(cur,'b')||sumT(cur,'d')?`<div class="mut">Borç eklendi ${money(sumT(cur,'b'))} · İndirim ${money(sumT(cur,'d'))}</div>`:''}
 <div class="acts"><button class="btn p" data-a="pay">Ödeme / düzeltme</button><button class="btn" data-a="new">Cihaz ekle</button></div>
 <div class="acts"><button class="btn" data-a="wa">WhatsApp hatırlat</button><button class="btn" data-a="sum">Özet gönder</button></div>
