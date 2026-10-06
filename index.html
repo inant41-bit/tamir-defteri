@@ -200,11 +200,11 @@ const money=n=>(Number(n)||0).toLocaleString('tr-TR')+' ₺';
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const fmt=d=>d?d.split('-').reverse().join('.'):'';
 const byD=(a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id;
-const fin=i=>i.st==='Tamamlandı'||i.st==='Teslim edildi';
+const fin=i=>i.st==='Tamamlandı'||i.st==='Teslim edildi';const bor=i=>i.st==='Teslim edildi';
 const dn=id=>(dealers.find(d=>d.id===id)||{}).name||'';
-const owed=d=>items.filter(i=>i.dealer===d&&fin(i)).reduce((a,i)=>a+(+i.fee||0),0);
+const owed=d=>items.filter(i=>i.dealer===d&&bor(i)).reduce((a,i)=>a+(+i.fee||0),0);
 const sumT=(d,t)=>pays.filter(p=>p.dealer===d&&(p.t||'p')===t).reduce((a,p)=>a+(+p.amt||0),0);
-const paid=d=>sumT(d,'p')+items.filter(i=>i.dealer===d&&fin(i)&&i.paid).reduce((a,i)=>a+(+i.fee||0),0);
+const paid=d=>sumT(d,'p')+items.filter(i=>i.dealer===d&&bor(i)&&i.paid).reduce((a,i)=>a+(+i.fee||0),0);
 const debt=d=>owed(d)+sumT(d,'b')-paid(d)-sumT(d,'d');
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
 function save(){ghQ();try{localStorage.setItem(K[0],JSON.stringify(items));localStorage.setItem(K[1],JSON.stringify(dealers));localStorage.setItem(K[2],JSON.stringify(pays))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
@@ -213,10 +213,10 @@ const open=id=>$('#'+id).classList.add('open'),shut=id=>$('#'+id).classList.remo
 async function sendTxt(t){try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e&&e.name==='AbortError')return}cp(t)}
 async function cp(t){try{await navigator.clipboard.writeText(t);toast('Kopyalandı')}catch(e){$('#b-out').value=t;$('#b-in').value='';open('bs');toast('Metni seçip kopyala')}}
 let AM={};
-function calcAM(){AM={};dealers.forEach(d=>{let pool=Math.max(0,sumT(d.id,'p')+sumT(d.id,'d'));items.filter(i=>i.dealer===d.id&&fin(i)&&!i.paid).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id).forEach(i=>{const f=+i.fee||0,a=Math.min(pool,f);AM[i.id]=a;pool-=a})})}
-function pst(i){if(!fin(i))return'';if(i.paid)return'ödendi';const f=+i.fee||0,a=AM[i.id]||0;if(f<=0)return'';return a>=f-.005?'ödendi':a>0?'kısmen ödendi · kalan '+money(f-a):'ödeme bekliyor'}
+function calcAM(){AM={};dealers.forEach(d=>{let pool=Math.max(0,sumT(d.id,'p')+sumT(d.id,'d'));items.filter(i=>i.dealer===d.id&&bor(i)&&!i.paid).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id).forEach(i=>{const f=+i.fee||0,a=Math.min(pool,f);AM[i.id]=a;pool-=a})})}
+function pst(i){if(!bor(i))return'';if(i.paid)return'ödendi';const f=+i.fee||0,a=AM[i.id]||0;if(f<=0)return'';return a>=f-.005?'ödendi':a>0?'kısmen ödendi · kalan '+money(f-a):'ödeme bekliyor'}
 const pstH=i=>{const t=pst(i);return t?` · <span class="${t.startsWith('ödendi')?'pos':'neg'}">${t}</span>`:''};
-const card=i=>{const k=ST.indexOf(i.st),w=i.dealer?esc(dn(i.dealer)):esc(i.name||'Bireysel'),ps2=i.dealer&&fin(i)?pst(i):(i.st==='Teslim edildi'?(i.paid?'ödendi':'ödeme bekliyor'):''),pd=ps2?' · '+ps2:'';return `<article class="rw" data-id="${i.id}"><i class="dot s${k}"></i><div class="mid"><b>${esc(i.model)}</b><small>${w}${i.issue?' · '+esc(i.issue):''}</small></div><div class="rt"><b>${money(i.fee)}</b><small>${esc(i.st)}${pd}</small></div></article>`};
+const card=i=>{const k=ST.indexOf(i.st),w=i.dealer?esc(dn(i.dealer)):esc(i.name||'Bireysel'),ps2=i.dealer&&bor(i)?pst(i):(i.st==='Teslim edildi'?(i.paid?'ödendi':'ödeme bekliyor'):''),pd=ps2?' · '+ps2:'';return `<article class="rw" data-id="${i.id}"><i class="dot s${k}"></i><div class="mid"><b>${esc(i.model)}</b><small>${w}${i.issue?' · '+esc(i.issue):''}</small></div><div class="rt"><b>${money(i.fee)}</b><small>${esc(i.st)}${pd}</small></div></article>`};
 const dlab=d=>!d?'Tarihsiz':d===today()?'Bugün':d===new Date(Date.now()-864e5-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)?'Dün':fmt(d);
 function grp(l){const g={};l.forEach(i=>(g[i.date||'']=g[i.date||'']||[]).push(i));return Object.keys(g).sort().reverse().map(d=>`<div class="dh"><span>${dlab(d)}</span><span>${money(g[d].filter(fin).reduce((a,i)=>a+(+i.fee||0),0))}</span></div><div class="grp">${g[d].map(card).join('')}</div>`).join('')}
 function waNum(p){let n=String(p||'').replace(/\D/g,'');if(!n)return'';if(n.startsWith('00'))n=n.slice(2);else if(n.startsWith('0'))n='90'+n.slice(1);else if(n.length===10)n='90'+n;return n}
@@ -298,7 +298,7 @@ const afOn=()=>!!(AF.from||AF.to||AF.dealer!=='all'||AF.pay!=='all');
 const af=i=>(!AF.from||(i.date||'')>=AF.from)&&(!AF.to||(i.date||'')<=AF.to)&&(AF.dealer==='all'||(AF.dealer==='ind'?!i.dealer:i.dealer===+AF.dealer))&&(AF.pay==='all'||(AF.pay==='paid'?pst(i)==='ödendi':(!!pst(i)&&pst(i)!=='ödendi')));
 function ledger(id){
  const R=[];
- items.filter(i=>i.dealer===id&&fin(i)&&(+i.fee||0)!==0).forEach(i=>{const f=+i.fee||0;R.push({d:i.date||'',o:0,k:i.id,txt:i.model+(i.issue?' · '+i.issue:''),v:f});if(i.paid)R.push({d:i.date||'',o:2,k:i.id,txt:'Ödeme alındı · '+i.model,v:-f})});
+ items.filter(i=>i.dealer===id&&bor(i)&&(+i.fee||0)!==0).forEach(i=>{const f=+i.fee||0;R.push({d:i.date||'',o:0,k:i.id,txt:i.model+(i.issue?' · '+i.issue:''),v:f});if(i.paid)R.push({d:i.date||'',o:2,k:i.id,txt:'Ödeme alındı · '+i.model,v:-f})});
  pays.filter(p=>p.dealer===id).forEach(p=>{const t=p.t||'p',n=p.note?' · '+p.note:'',d=p.date||'';R.push(t==='b'?{d,o:1,k:p.id,txt:'Borç eklendi'+n,v:+p.amt}:t==='d'?{d,o:3,k:p.id,txt:'İndirim'+n,v:-p.amt}:{d,o:2,k:p.id,txt:'Ödeme'+n,v:-p.amt})});
  R.sort((a,b)=>a.d.localeCompare(b.d)||a.o-b.o||a.k-b.k);
  let b=0;R.forEach(r=>{b+=r.v;r.bal=b});return R;
@@ -371,13 +371,13 @@ ${sumT(cur,'b')||sumT(cur,'d')?`<div class="mut">Borç eklendi ${money(sumT(cur,
 <div class="acts"><button class="btn p" data-a="pay">Ödeme / düzeltme</button><button class="btn" data-a="new">Cihaz ekle</button></div>
 <div class="acts"><button class="btn" data-a="wa">WhatsApp hatırlat</button><button class="btn" data-a="sum">Özet gönder</button></div>
 <div class="acts"><button class="btn" data-a="led">Cari defter</button><button class="btn" data-a="ed">Düzenle</button><button class="btn" data-x>Kapat</button></div>
-<h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${fin(i)?pstH(i):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
+<h3>Cihazlar (${its.length})</h3>${its.map(i=>`<div class="mr" data-r="${i.id}"><span>${fmt(i.date)} · ${esc(i.model)}<br><small class="mut">${esc(i.st)}${bor(i)?pstH(i):' · borca yazılmadı'}</small></span><b>${money(i.fee)}</b></div>`).join('')||'<div class="mut">Kayıt yok</div>'}
 <h3>Ödeme ve düzeltmeler (${ps.length})</h3>${ps.map(p=>{const t=p.t||'p',v=(t==='b'?1:-1)*p.amt;return `<div class="mr"><span>${fmt(p.date)} · ${({p:'Ödeme',d:'İndirim',b:'Borç eklendi'})[t]}${p.note?' · '+esc(p.note):''}</span><span><b class="${v>0?'neg':'pos'}">${v>=0?'+':'−'}${money(Math.abs(v))}</b><button class="x" data-pd="${p.id}" aria-label="Kaydı sil">×</button></span></div>`}).join('')||'<div class="mut">Hareket yok</div>'}`;
 }
 const ref=()=>{render();bnr();if($('#ds').classList.contains('open'))dRender()};
 function sumTxt(){
  const d=dealers.find(x=>x.id===cur);
- return [d.name+' hesap özeti','',...items.filter(i=>i.dealer===cur&&fin(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(i=>fmt(i.date)+' '+i.model+': '+money(i.fee)),'',...pays.filter(p=>p.dealer===cur).map(p=>{const t=p.t||'p';return fmt(p.date)+' '+({p:'ödeme',d:'indirim',b:'borç eklendi'})[t]+': '+(t==='b'?'+':'-')+money(p.amt)}),'','Toplam iş: '+money(owed(cur)),'Ödenen: '+money(paid(cur)),...(sumT(cur,'b')?['Eklenen borç: '+money(sumT(cur,'b'))]:[]),...(sumT(cur,'d')?['İndirim: '+money(sumT(cur,'d'))]:[]),'Kalan borç: '+money(debt(cur))].join('\n');
+ return [d.name+' hesap özeti','',...items.filter(i=>i.dealer===cur&&bor(i)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(i=>fmt(i.date)+' '+i.model+': '+money(i.fee)),'',...pays.filter(p=>p.dealer===cur).map(p=>{const t=p.t||'p';return fmt(p.date)+' '+({p:'ödeme',d:'indirim',b:'borç eklendi'})[t]+': '+(t==='b'?'+':'-')+money(p.amt)}),'','Toplam iş: '+money(owed(cur)),'Ödenen: '+money(paid(cur)),...(sumT(cur,'b')?['Eklenen borç: '+money(sumT(cur,'b'))]:[]),...(sumT(cur,'d')?['İndirim: '+money(sumT(cur,'d'))]:[]),'Kalan borç: '+money(debt(cur))].join('\n');
 }
 $('#f-st').innerHTML=ST.map(s=>`<option>${s}</option>`).join('');
 $('#stb').innerHTML=ST.map((s,k)=>`<button type="button" class="sb" data-s="${s}"><i class="dot s${k}"></i>${s}</button>`).join('');
@@ -425,7 +425,7 @@ $('#ddel').onclick=e=>{
 $('#pall').onclick=()=>$('#p-amt').value=Math.max(0,debt(cur));
 $('#psv').onclick=()=>{
  const a=Number($('#p-amt').value);if(!a||!isFinite(a)){toast('Tutarı yaz');return}
- const cnt=()=>items.filter(i=>i.dealer===cur&&fin(i)&&pst(i)==='ödendi').length,n0=cnt();
+ const cnt=()=>items.filter(i=>i.dealer===cur&&bor(i)&&pst(i)==='ödendi').length,n0=cnt();
  pays.push({id:Date.now(),dealer:cur,amt:a,t:pt,date:$('#p-date').value||today(),note:$('#p-note').value.trim()});
  save();ref();shut('ps');const n1=cnt();toast(n1>n0?'Kaydedildi · '+(n1-n0)+' cihaz ödendi':'Kaydedildi');
 };
