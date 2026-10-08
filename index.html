@@ -160,6 +160,7 @@ section[hidden]{display:none}
 <div class="two"><div><label for="f-fee">Ücret (₺)</label><input id="f-fee" type="number" inputmode="decimal" min="0"></div><div><label for="f-date">Tarih</label><input id="f-date" type="date"></div></div>
 <label>Durum</label><div class="seg" id="stb"></div><select id="f-st" hidden></select>
 <label class="chk" id="pdw" hidden><input type="checkbox" id="f-paid"> Ödeme alındı</label>
+<div id="rcw" hidden><label for="f-recv">Teslimde alınan ödeme (₺)</label><div class="bar" style="margin:0"><input id="f-recv" type="number" inputmode="decimal" min="0" placeholder="0"><button type="button" class="btn" id="f-all" style="flex:none">Tamamı</button></div><small class="mut" id="f-rh"></small></div>
 <div class="acts"><button class="btn" id="fwa" style="flex:1">WhatsApp ile mesaj gönder</button></div>
 <div class="acts"><button class="btn d" id="del" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn" id="fsn">Kaydet + yeni</button><button class="btn p" id="fsv">Kaydet</button></div>
 </div></div>
@@ -214,7 +215,10 @@ const open=id=>$('#'+id).classList.add('open'),shut=id=>$('#'+id).classList.remo
 async function sendTxt(t){try{if(navigator.share){await navigator.share({text:t});return}}catch(e){if(e&&e.name==='AbortError')return}cp(t)}
 async function cp(t){try{await navigator.clipboard.writeText(t);toast('Kopyalandı')}catch(e){$('#b-out').value=t;$('#b-in').value='';open('bs');toast('Metni seçip kopyala')}}
 let AM={};
-function calcAM(){AM={};dealers.forEach(d=>{let pool=Math.max(0,sumT(d.id,'p')+sumT(d.id,'d'));items.filter(i=>i.dealer===d.id&&bor(i)&&!i.paid).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id).forEach(i=>{const f=+i.fee||0,a=Math.min(pool,f);AM[i.id]=a;pool-=a})})}
+function calcAM(){AM={};dealers.forEach(d=>{let pool=Math.max(0,sumT(d.id,'p')+sumT(d.id,'d'));const L=items.filter(i=>i.dealer===d.id&&bor(i)&&!i.paid).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.id-b.id);
+ L.forEach(i=>{const f=+i.fee||0,r=pays.filter(p=>p.ref===i.id&&p.dealer===d.id&&(p.t||'p')==='p').reduce((a,p)=>a+(+p.amt||0),0),a=Math.min(f,r);AM[i.id]=a;pool-=a});
+ pool=Math.max(0,pool);
+ L.forEach(i=>{const f=+i.fee||0,a=Math.min(pool,f-AM[i.id]);AM[i.id]+=a;pool-=a})})}
 function pst(i){if(!bor(i))return'';if(i.paid)return'ödendi';const f=+i.fee||0,a=AM[i.id]||0;if(f<=0)return'';return a>=f-.005?'ödendi':a>0?'kısmen ödendi · kalan '+money(f-a):'ödeme bekliyor'}
 const pstH=i=>{const t=pst(i);return t?` · <span class="${t.startsWith('ödendi')?'pos':'neg'}">${t}</span>`:''};
 const card=i=>{const k=ST.indexOf(i.st),w=i.dealer?esc(dn(i.dealer)):esc(i.name||'Bireysel'),ps2=i.dealer&&bor(i)?pst(i):(i.st==='Teslim edildi'?(i.paid?'ödendi':'ödeme bekliyor'):''),pd=ps2?' · '+ps2:'';return `<article class="rw" data-id="${i.id}"><i class="dot s${k}"></i><div class="mid"><b>${esc(i.model)}</b><small>${w}${i.issue?' · '+esc(i.issue):''}</small></div><div class="rt"><b>${money(i.fee)}</b><small>${esc(i.st)}${pd}</small></div></article>`};
@@ -388,7 +392,7 @@ function openForm(id,dl){
  editId=id;const i=items.find(x=>x.id===id)||{date:today(),st:ST[0],dealer:dl||0};
  $('#f-dealer').innerHTML='<option value="0">Bireysel müşteri</option>'+dealers.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
  F.forEach(k=>$('#f-'+k).value=i[k]==null?'':i[k]);
- $('#f-paid').checked=!!i.paid;sync();imeiOk=false;imeiHint();$('#fsn').hidden=!!id;$('#dm').innerHTML=[...new Set(items.map(x=>x.model).filter(Boolean))].slice(-80).map(m=>`<option value="${esc(m)}">`).join('');$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
+ $('#f-paid').checked=!!i.paid;$('#f-recv').value=(id&&(pays.filter(p=>p.ref===id).reduce((a,p)=>a+(+p.amt||0),0)||(i.dealer&&i.paid?(+i.fee||0):0)))||'';sync();imeiOk=false;imeiHint();$('#fsn').hidden=!!id;$('#dm').innerHTML=[...new Set(items.map(x=>x.model).filter(Boolean))].slice(-80).map(m=>`<option value="${esc(m)}">`).join('');$('#ft').textContent=id?'Kaydı düzenle':'Yeni kayıt';
  const d=$('#del');d.hidden=!id;d.textContent='Sil';d.classList.remove('arm');delete d.dataset.a;open('fs');
 }
 function openDF(id){
@@ -407,12 +411,16 @@ function sv(){
  if(!o.model){toast('Cihaz modelini yaz');$('#f-model').focus();return false}
  if(imeiProb(o.imei)&&!imeiOk){imeiOk=true;toast("IMEI hatalı görünüyor, yine de kaydetmek için Kaydet'e tekrar bas");return false}
  o.fee=o.fee===''?0:Number(o.fee);o.dealer=+o.dealer||0;o.paid=$('#f-paid').checked&&o.st==='Teslim edildi';if(o.dealer){o.name='';o.phone=''}
- if(editId){const i=items.findIndex(x=>x.id===editId);items[i]={...items[i],...o}}else items.push({id:Date.now(),...o});
+ const dlv=o.dealer&&o.st==='Teslim edildi',recv=dlv?(Number($('#f-recv').value)||0):0;
+ if(dlv){if(recv<0||recv>o.fee+.005){toast('Alınan ödeme ücretten fazla olamaz');return false}o.paid=false}
+ const nid=editId||Date.now();
+ if(editId){const i=items.findIndex(x=>x.id===editId);items[i]={...items[i],...o}}else items.push({id:nid,...o});
+ if(dlv){const old=pays.find(p=>p.ref===nid);pays=pays.filter(p=>p.ref!==nid);if(recv>0)pays.push({id:nid+1,dealer:o.dealer,amt:recv,t:'p',date:old?old.date:today(),note:'Teslimde · '+o.model,ref:nid})}
  save();ref();toast('Kaydedildi');return true;
 }
 $('#fsv').onclick=()=>{if(sv())shut('fs')};
 $('#fsn').onclick=()=>{const d=+$('#f-dealer').value||0;if(sv()){openForm(null,d);setTimeout(()=>$('#f-model').focus(),60)}};
-$('#del').onclick=e=>arm(e.target,()=>{items=items.filter(x=>x.id!==editId);save();ref();shut('fs');toast('Silindi')});
+$('#del').onclick=e=>arm(e.target,()=>{items=items.filter(x=>x.id!==editId);pays=pays.filter(p=>p.ref!==editId);save();ref();shut('fs');toast('Silindi')});
 $('#dsv').onclick=()=>{
  const o={name:$('#d-name').value.trim(),phone:$('#d-phone').value.trim(),note:$('#d-note').value.trim()};
  if(!o.name){toast('Bayi adını yaz');return}
@@ -430,7 +438,9 @@ $('#psv').onclick=()=>{
  pays.push({id:Date.now(),dealer:cur,amt:a,t:pt,date:$('#p-date').value||today(),note:$('#p-note').value.trim()});
  save();ref();shut('ps');const n1=cnt();toast(n1>n0?'Kaydedildi · '+(n1-n0)+' cihaz ödendi':'Kaydedildi');
 };
-function sync(){$('#cust').hidden=!(+$('#f-dealer').value||0)===false;$('#pdw').hidden=$('#f-st').value!=='Teslim edildi';stb()}
+function sync(){$('#cust').hidden=!(+$('#f-dealer').value||0)===false;const dv=$('#f-st').value==='Teslim edildi',dl=!!(+$('#f-dealer').value||0);$('#pdw').hidden=!dv||dl;$('#rcw').hidden=!dv||!dl;rh();stb()}
+function rh(){const f=Number($('#f-fee').value)||0,r=Number($('#f-recv').value)||0,h=$('#f-rh');h.textContent=r>f+.005?'Alınan tutar ücretten fazla olamaz':(r<f?'Kalan '+money(f-r)+' bayi borcunda kalır':'');h.className=r>f+.005?'neg':'mut'}
+$('#f-recv').oninput=$('#f-fee').oninput=rh;$('#f-all').onclick=()=>{$('#f-recv').value=Number($('#f-fee').value)||0;rh()};
 $('#f-dealer').onchange=$('#f-st').onchange=sync;
 $('#per').onchange=render;
 $('#q').oninput=e=>{q=e.target.value;lim=50;clearTimeout(qt);qt=setTimeout(render,120)};
