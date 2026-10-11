@@ -101,6 +101,23 @@ section[hidden]{display:none}
 .afc .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .afc .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
 .afc small{display:block;color:var(--mut);font-size:12px}.afc b{font-size:15px}
+.tabs .tab{padding:9px 4px}
+main.g .hero,main.g .kp{display:none}
+.gh{background:linear-gradient(135deg,#0f2a22,#1b5a47);color:#fff;border-radius:18px;padding:14px 16px 16px;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 6px 18px rgba(15,42,34,.25)}
+.gh small{display:block;color:#b6d3c7;font-size:13px}
+.gh b{display:block;font-size:34px;letter-spacing:-1px;line-height:1.15}
+.gmn{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.gmn b{text-transform:capitalize}
+.gmn button{width:42px;height:42px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit;font-size:20px}
+.gcat{display:flex;align-items:center;gap:10px;padding:8px 4px;cursor:pointer;border-radius:10px}
+.gcat.on{background:var(--bg)}
+.gcat .e{width:28px;text-align:center;font-size:19px}
+.gcat .m{flex:1;min-width:0}.gcat .m div{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px}
+.gcat .br{height:6px;border-radius:99px;background:var(--bd);overflow:hidden}.gcat .br i{display:block;height:100%;background:#1f9d6b;border-radius:99px}
+.gc{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.gc button{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 0 6px;font:inherit;font-size:11px}
+.gc button span{display:block;font-size:20px}
+.gc button.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}
 </style></head><body>
 <main>
 <h1>Tamir <span>Defteri</span></h1>
@@ -116,9 +133,10 @@ section[hidden]{display:none}
 <div class="k k3"><small>Açık iş</small><b id="s1">0</b></div>
 </div>
 <div class="bn" id="bn" hidden><span id="bnt"></span><button class="btn p" id="bnb">Yedek al</button></div>
-<div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button></div>
+<div class="tabs"><button class="tab on" data-t="1">Kayıtlar</button><button class="tab" data-t="2">Bayiler</button><button class="tab" data-t="3">Giderler</button></div>
 <section id="v1"><div class="stk"><div class="bar"><input id="q" type="search" placeholder="Ara: bayi, müşteri, model, IMEI" aria-label="Ara"><button class="btn" id="afb">Filtre</button><button class="btn" id="bkb">Yedek</button></div><div class="chips" id="chips"></div></div><div id="afs"></div><div id="list"></div><div id="more"></div></section>
 <section id="v2" hidden><div id="dl"></div></section>
+<section id="v3" hidden><div class="gmn"><button id="gpv" aria-label="Önceki ay">‹</button><b id="gml"></b><button id="gnx" aria-label="Sonraki ay">›</button></div><div class="gh"><small>Kişisel harcama</small><b id="gtot">0 ₺</b><small id="gdl"></small></div><div id="gcb"></div><div id="gfl"></div><div id="glist"></div><p class="mut" style="text-align:center;margin-top:14px">Kişisel giderler; kasa, bayi ve tamir hesaplarına dahil edilmez.</p></section>
 </main>
 <button class="fab" id="add">+ Yeni kayıt</button>
 
@@ -165,6 +183,15 @@ section[hidden]{display:none}
 <div class="acts"><button class="btn d" id="del" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn" id="fsn">Kaydet + yeni</button><button class="btn p" id="fsv">Kaydet</button></div>
 </div></div>
 
+<div class="sheet" id="gs"><div class="panel">
+<h2 id="gt">Yeni gider</h2>
+<label for="g-amt">Tutar (₺) *</label><input id="g-amt" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+<label>Kategori</label><div class="gc" id="g-cat"></div>
+<label for="g-note">Not</label><input id="g-note" placeholder="İstersen yaz">
+<label for="g-date">Tarih</label><input id="g-date" type="date">
+<div class="acts"><button class="btn d" id="gdel" hidden>Sil</button><button class="btn" data-x>Vazgeç</button><button class="btn p" id="gsv">Kaydet</button></div>
+<button class="btn" id="gsn" style="width:100%;margin-top:8px">Kaydet + yeni</button>
+</div></div>
 <div class="sheet" id="dfs"><div class="panel">
 <h2 id="dft">Yeni bayi</h2>
 <label for="d-name">Bayi adı *</label><input id="d-name">
@@ -193,9 +220,9 @@ section[hidden]{display:none}
 
 <script>
 const $=s=>document.querySelector(s);
-const K=['tamir-defteri-v1','tamir-bayi-v1','tamir-odeme-v1'],ST=['Bekliyor','Tamirde','Tamamlandı','Teslim edildi'];
+const K=['tamir-defteri-v1','tamir-bayi-v1','tamir-odeme-v1'],KG='tamir-gider-v1',ST=['Bekliyor','Tamirde','Tamamlandı','Teslim edildi'];
 const ld=k=>{try{const a=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}};
-let lim=50,qt,items=ld(K[0]),dealers=ld(K[1]),pays=ld(K[2]),filter='Hepsi',q='',tab=1,editId=null,editD=null,cur=0;
+let lim=50,qt,items=ld(K[0]),dealers=ld(K[1]),pays=ld(K[2]),giderler=ld(KG),gym=null,gfc='',gEdit=null,gCat='Market',filter='Hepsi',q='',tab=1,editId=null,editD=null,cur=0;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>(Number(n)||0).toLocaleString('tr-TR')+' ₺';
 const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -209,6 +236,7 @@ const sumT=(d,t)=>pays.filter(p=>p.dealer===d&&(p.t||'p')===t).reduce((a,p)=>a+(
 const paid=d=>sumT(d,'p')+items.filter(i=>i.dealer===d&&bor(i)&&i.paid).reduce((a,i)=>a+(+i.fee||0),0);
 const debt=d=>owed(d)+sumT(d,'b')-paid(d)-sumT(d,'d');
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),2200)}
+function saveG(){ghQ();try{localStorage.setItem(KG,JSON.stringify(giderler))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
 function save(){ghQ();try{localStorage.setItem(K[0],JSON.stringify(items));localStorage.setItem(K[1],JSON.stringify(dealers));localStorage.setItem(K[2],JSON.stringify(pays))}catch(e){toast('Kaydedilemedi, depolama kapalı olabilir')}}
 function arm(b,fn,txt){if(b.dataset.a){fn();return}b.dataset.a=1;b.dataset.o=b.textContent;b.textContent=txt||'Emin misin? Sil';b.classList.add('arm');setTimeout(()=>{delete b.dataset.a;b.textContent=b.dataset.o;b.classList.remove('arm')},3000)}
 const open=id=>$('#'+id).classList.add('open'),shut=id=>$('#'+id).classList.remove('open');
@@ -261,7 +289,7 @@ async function ghRun(force){
   const H=hdr(c.token),g=await fetch(gu(c)+'?_='+Date.now(),{headers:H});let sha;
   if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw{s:g.status};
   if(sha&&ls(GS)!=='1'){gerr='Depoda yedek var, önce "GitHub\'dan geri yükle"ye bas';return}
-  const v=gver,txt=JSON.stringify({v:2,items,dealers,pays});
+  const v=gver,txt=JSON.stringify({v:2,items,dealers,pays,giderler});
   const r=await fetch(gu(c),{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify({message:'Yedek '+new Date().toISOString().slice(0,19).replace('T',' '),content:b64(txt),...(sha?{sha}:{})})});
   if(!r.ok)throw{s:r.status};
   lsw(GS,'1');lsw(GL,String(Date.now()));if(v===gver)lsw(GD,null);
@@ -405,7 +433,7 @@ const PT={p:'Ödeme al',d:'İndirim / düşüm',b:'Borç ekle'};let pt='p';
 $('#ptb').innerHTML=Object.keys(PT).map(k=>`<button type="button" class="tb" data-p="${k}">${k==='p'?'Ödeme':k==='d'?'İndirim':'Borç ekle'}</button>`).join('');
 function setPT(k){pt=k;$('#pt').textContent=PT[k]+' · '+dn(cur);document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.p===k))}
 function openPay(){$('#p-amt').value='';$('#p-note').value='';$('#p-date').value=today();setPT('p');open('ps')}
-$('#add').onclick=()=>tab===1?openForm(null):openDF(null);
+$('#add').onclick=()=>tab===1?openForm(null):tab===2?openDF(null):openG(null);
 function sv(){
  const o={};F.forEach(k=>o[k]=$('#f-'+k).value.trim());
  if(!o.model){toast('Cihaz modelini yaz');$('#f-model').focus();return false}
@@ -449,7 +477,7 @@ document.addEventListener('click',e=>{
  if(t.classList.contains('sheet')){t.classList.remove('open');return}
  let x;
  if(x=t.closest('[data-x]')){x.closest('.sheet').classList.remove('open');return}
- if(x=t.closest('[data-t]')){tab=+x.dataset.t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===x));$('#v1').hidden=tab!==1;$('#v2').hidden=tab!==2;$('#add').textContent=tab===1?'+ Yeni kayıt':'+ Yeni bayi';return}
+ if(x=t.closest('[data-t]')){tab=+x.dataset.t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===x));$('#v1').hidden=tab!==1;$('#v2').hidden=tab!==2;$('#v3').hidden=tab!==3;document.querySelector('main').classList.toggle('g',tab===3);$('#add').textContent=tab===1?'+ Yeni kayıt':tab===2?'+ Yeni bayi':'+ Yeni gider';if(tab===3)gRender();return}
  if(t.closest('#mb')){lim+=50;render();return}
  if(t.closest('#afx')){AF={from:'',to:'',dealer:'all',pay:'all'};lim=50;render();return}
  if(x=t.closest('.qr')){const n=new Date(),y=n.getFullYear(),m=n.getMonth(),q=x.dataset.q;let f,e;if(q==='m'){f=new Date(y,m,1);e=new Date(y,m+1,0)}else if(q==='p'){f=new Date(y,m-1,1);e=new Date(y,m,0)}else{f=new Date(Date.now()-29*864e5);e=n}$('#a-from').value=ymd(f);$('#a-to').value=ymd(e);return}
@@ -467,10 +495,10 @@ const LB='tamir-son-yedek';
 const lastB=()=>{try{return localStorage.getItem(LB)||''}catch(e){return''}};
 const dAgo=s=>s?Math.floor((Date.now()-new Date(s+'T00:00'))/864e5):null;
 function bnr(){const a=dAgo(lastAny()),n=items.length+dealers.length+pays.length>0;$('#bn').hidden=!(n&&(a===null||a>=7));$('#bnt').textContent=a===null?'Henüz yedek almadın.':'Son yedek '+a+' gün önce.'}
-function openB(){$('#b-out').value=JSON.stringify({v:2,items,dealers,pays});$('#b-in').value='';const a=dAgo(lastB());$('#bls').textContent=a===null?'Henüz yedek alınmadı.':'Son yedek: '+(a===0?'bugün':a+' gün önce')+'.';gui();open('bs')}
+function openB(){$('#b-out').value=JSON.stringify({v:2,items,dealers,pays,giderler});$('#b-in').value='';const a=dAgo(lastB());$('#bls').textContent=a===null?'Henüz yedek alınmadı.':'Son yedek: '+(a===0?'bugün':a+' gün önce')+'.';gui();open('bs')}
 $('#bkb').onclick=$('#bnb').onclick=openB;
 $('#bsv').onclick=async()=>{
- const txt=JSON.stringify({v:2,items,dealers,pays}),name='tamir-yedek-'+today()+'.json',f=new File([txt],name,{type:'application/json'});
+ const txt=JSON.stringify({v:2,items,dealers,pays,giderler}),name='tamir-yedek-'+today()+'.json',f=new File([txt],name,{type:'application/json'});
  try{
   if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:name});
   else{const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
@@ -482,12 +510,63 @@ $('#bcp').onclick=()=>{const t=$('#b-out');t.select();t.setSelectionRange(0,t.va
 const mg=(a,s)=>{let n=0;(s||[]).forEach(o=>{if(o&&o.id){const i=a.findIndex(x=>x.id===o.id);if(i<0)a.push(o);else a[i]=o;n++}});return n};
 function imp(t){
  try{const a=JSON.parse(t);let n=0;
-  if(Array.isArray(a))n=mg(items,a);else n=mg(items,a.items)+mg(dealers,a.dealers)+mg(pays,a.pays);
-  if(!n)throw 0;save();ref();shut('bs');toast(n+' kayıt yüklendi');return true
+  let ng=0;if(Array.isArray(a))n=mg(items,a);else{n=mg(items,a.items)+mg(dealers,a.dealers)+mg(pays,a.pays);(a.giderler||[]).forEach(o=>{if(o&&o.id!=null&&o.amt>0&&o.date&&!giderler.some(x=>String(x.id)===String(o.id))){giderler.push({id:o.id,amt:+o.amt,cat:o.cat||'Diğer',note:o.note||'',date:o.date});ng++}})}
+  if(!n&&!ng)throw 0;n+=ng;if(ng)saveG();save();ref();shut('bs');toast(n+' kayıt yüklendi');return true
  }catch(e){toast('Yedek geçersiz');return false}
 }
 $('#bld').onclick=()=>imp($('#b-in').value);
 $('#b-file').onchange=async e=>{const f=e.target.files[0];if(f)imp(await f.text());e.target.value=''};
+
+/* ===== Kişisel giderler: kasa/bayi/tamir hesaplarından tamamen bağımsız ===== */
+const GC=[['Market','🛒'],['Yemek','🍽️'],['Fatura','🧾'],['Kira','🏠'],['Ulaşım','🚌'],['Sağlık','💊'],['Giyim','👕'],['Eğlence','🎬'],['Çocuk','🧸'],['Diğer','📦']];
+const gEmo=c=>(GC.find(x=>x[0]===c)||GC[9])[1];
+const gSum=l=>l.reduce((a,x)=>a+(+x.amt||0),0);
+const gShift=k=>{const[y,m]=gym.split('-').map(Number),d=new Date(y,m-1+k,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+function gRender(){
+ if(!gym)gym=today().slice(0,7);
+ const[y,m]=gym.split('-').map(Number);
+ $('#gml').textContent=new Date(y,m-1,1).toLocaleDateString('tr-TR',{month:'long',year:'numeric'});
+ const mo=giderler.filter(x=>(x.date||'').slice(0,7)===gym),pv=giderler.filter(x=>(x.date||'').slice(0,7)===gShift(-1)),t=gSum(mo),p=gSum(pv);
+ $('#gtot').textContent=money(t);
+ $('#gdl').textContent=p>0?(t>p?'Geçen aydan '+money(t-p)+' fazla':t<p?'Geçen aydan '+money(p-t)+' az':'Geçen ayla aynı'):(t>0?'Geçen ay kayıt yok':'Bu ay henüz gider yok');
+ const by={};mo.forEach(x=>by[x.cat]=(by[x.cat]||0)+(+x.amt||0));
+ const rows=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+ $('#gcb').innerHTML=rows.length?'<div class="grp" style="padding:8px 12px;margin-bottom:12px">'+rows.map(([c,v])=>`<div class="gcat ${gfc===c?'on':''}" data-gc="${esc(c)}"><span class="e">${gEmo(c)}</span><div class="m"><div><span>${esc(c)}</span><b>${money(v)}</b></div><div class="br"><i style="width:${Math.max(3,v/rows[0][1]*100)}%"></i></div></div></div>`).join('')+'</div>':'';
+ document.querySelectorAll('.gcat').forEach(r=>r.onclick=()=>{gfc=gfc===r.dataset.gc?'':r.dataset.gc;gRender()});
+ $('#gfl').innerHTML=gfc?`<div class="bn"><span>${gEmo(gfc)} ${esc(gfc)} gösteriliyor</span><button class="btn" id="gfx">Temizle</button></div>`:'';
+ if(gfc)$('#gfx').onclick=()=>{gfc='';gRender()};
+ const L=mo.filter(x=>!gfc||x.cat===gfc).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.id).localeCompare(String(a.id))),g={};
+ L.forEach(x=>(g[x.date]=g[x.date]||[]).push(x));
+ $('#glist').innerHTML=L.length?Object.keys(g).sort().reverse().map(d=>`<div class="dh"><span>${fmt(d)}</span><b>${money(gSum(g[d]))}</b></div><div class="grp">`+g[d].map(x=>`<div class="rw" data-g="${x.id}"><span style="font-size:22px;width:30px;text-align:center">${gEmo(x.cat)}</span><div class="mid"><b>${esc(x.note||x.cat)}</b><small>${esc(x.cat)}</small></div><div class="rt"><b>${money(+x.amt||0)}</b></div></div>`).join('')+'</div>').join(''):'<div class="empty">Bu ay gider kaydı yok.<br>Sağ alttaki düğmeyle ekle.</div>';
+ document.querySelectorAll('[data-g]').forEach(r=>r.onclick=()=>openG(r.dataset.g));
+}
+$('#g-cat').innerHTML=GC.map(([c,e])=>`<button type="button" data-c="${c}"><span>${e}</span>${c}</button>`).join('');
+function setGC(c){gCat=c;document.querySelectorAll('#g-cat button').forEach(b=>b.classList.toggle('on',b.dataset.c===c))}
+document.querySelectorAll('#g-cat button').forEach(b=>b.onclick=()=>setGC(b.dataset.c));
+function openG(id){
+ if(!gym)gym=today().slice(0,7);
+ gEdit=id||null;const x=id?giderler.find(v=>String(v.id)===String(id)):null;
+ $('#gt').textContent=x?'Gideri düzenle':'Yeni gider';
+ $('#g-amt').value=x?x.amt:'';$('#g-note').value=x?x.note||'':'';$('#g-date').value=x?x.date:(gym===today().slice(0,7)?today():gym+'-01');
+ setGC(x?x.cat:'Market');
+ const d=$('#gdel');d.hidden=!x;d.textContent='Sil';d.classList.remove('arm');delete d.dataset.a;$('#gsn').hidden=!!x;open('gs');
+ if(!x)setTimeout(()=>$('#g-amt').focus(),250);
+}
+function gSave(again){
+ const a=Number($('#g-amt').value),d=$('#g-date').value;
+ if(!(a>0)){toast('Tutarı yaz');return false}
+ if(!d){toast('Tarihi seç');return false}
+ const o={amt:a,cat:gCat,note:$('#g-note').value.trim(),date:d};
+ if(gEdit){const i=giderler.findIndex(v=>String(v.id)===String(gEdit));if(i>=0)giderler[i]={...giderler[i],...o}}
+ else giderler.push({id:Date.now()+'-'+Math.floor(Math.random()*1000),...o});
+ saveG();gym=d.slice(0,7);gfc='';gRender();toast('Kaydedildi');
+ if(again&&!gEdit){$('#g-amt').value='';$('#g-note').value='';$('#g-amt').focus()}else shut('gs');
+ return true;
+}
+$('#gsv').onclick=()=>gSave(false);$('#gsn').onclick=()=>gSave(true);
+$('#gdel').onclick=e=>arm(e.target,()=>{giderler=giderler.filter(v=>String(v.id)!==String(gEdit));saveG();shut('gs');gRender();toast('Silindi')});
+$('#gpv').onclick=()=>{gym=gShift(-1);gfc='';gRender()};
+$('#gnx').onclick=()=>{gym=gShift(1);gfc='';gRender()};
 let sy=0,lk=false;
 let hd=0,ig=0;
 window.addEventListener('popstate',()=>{if(ig>0){ig--;return}hd=Math.max(0,hd-1);const o=document.querySelectorAll('.sheet.open');if(o.length)o[o.length-1].classList.remove('open')});
